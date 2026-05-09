@@ -10,10 +10,6 @@ export const metadata: Metadata = {
   title: "Workout Tracker",
   description: "Private Muscle Training Management App",
   manifest: "/manifest.json",
-  icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-192x192.png",
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -78,9 +74,9 @@ export default function RootLayout({
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                  console.log('ServiceWorker registration successful');
-                }, function(err) {
-                  console.log('ServiceWorker registration failed');
+                  console.log('SW registered');
+                }).catch(function(err) {
+                  console.log('SW failed', err);
                 });
               });
             }

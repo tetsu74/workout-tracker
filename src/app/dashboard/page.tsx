@@ -183,7 +183,7 @@ export default function Dashboard() {
               <Tooltip 
                 contentStyle={{ backgroundColor: '#121212', border: '1px solid #333', borderRadius: '0.25rem' }}
                 itemStyle={{ color: 'var(--primary)' }}
-                formatter={(value: number) => [`${value} kg`, 'Volume']}
+                formatter={(value: any) => [`${value} kg`, 'Volume']}
               />
               <Legend verticalAlign="middle" align="right" layout="vertical" wrapperStyle={{ fontSize: '0.875rem' }} />
             </PieChart>

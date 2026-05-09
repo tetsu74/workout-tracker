@@ -24,7 +24,7 @@ const DEFAULT_EXERCISES = [
 ];
 
 function generateDummyData() {
-  const dummyData = [];
+  const dummyData: any[] = [];
   const today = new Date();
   
   for (let i = 30; i >= 0; i--) {

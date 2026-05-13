@@ -14,7 +14,6 @@ type SetData = {
 };
 
 export default function Home() {
-export default function Home() {
   const [exercisesData, setExercisesData] = useState<CustomExercise[]>([]);
   const [isLoadingExercises, setIsLoadingExercises] = useState(true);
 

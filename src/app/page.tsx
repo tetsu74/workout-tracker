@@ -166,8 +166,15 @@ export default function Home() {
     setSetsData(newSets);
   };
 
+  const isFormValid = useMemo(() => {
+    return muscleGroup !== "" && 
+           exercise !== "" && 
+           setsData.every(s => s.weight !== "" && s.reps !== "");
+  }, [muscleGroup, exercise, setsData]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isFormValid) return;
     setIsLoading(true);
     setMessage(null);
 
@@ -417,7 +424,16 @@ export default function Home() {
           />
         </div>
 
-        <button type="submit" className="btn-primary" disabled={isLoading} style={{ marginTop: '1rem' }}>
+        <button 
+          type="submit" 
+          className="btn-primary" 
+          disabled={!isFormValid || isLoading} 
+          style={{ 
+            marginTop: '1rem',
+            opacity: (!isFormValid || isLoading) ? 0.5 : 1,
+            cursor: (!isFormValid || isLoading) ? 'not-allowed' : 'pointer'
+          }}
+        >
           {isLoading ? <Loader2 className="animate-spin" /> : <PlusCircle size={20} />}
           {isLoading ? "Saving..." : `Save ${numSets} Sets`}
         </button>

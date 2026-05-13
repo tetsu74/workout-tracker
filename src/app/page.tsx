@@ -54,11 +54,13 @@ export default function Home() {
   useEffect(() => {
     // Check if already in standalone mode
     if (window.matchMedia('(display-mode: standalone)').matches) {
+      console.log('PWA: Already in standalone mode');
       setShowInstallBtn(false);
       return;
     }
 
     const handleBeforeInstallPrompt = (e: any) => {
+      console.log('PWA: beforeinstallprompt event fired');
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallBtn(true);
@@ -67,6 +69,7 @@ export default function Home() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     
     window.addEventListener('appinstalled', () => {
+      console.log('PWA: App installed successfully');
       setShowInstallBtn(false);
       setDeferredPrompt(null);
     });
@@ -80,6 +83,7 @@ export default function Home() {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
+    console.log(`PWA: User choice outcome: ${outcome}`);
     if (outcome === 'accepted') {
       setShowInstallBtn(false);
       setDeferredPrompt(null);
@@ -298,7 +302,7 @@ export default function Home() {
 
   return (
     <div>
-      {showInstallBtn && (
+      {showInstallBtn ? (
         <div style={{
           backgroundColor: 'var(--primary)',
           color: '#000',
@@ -326,6 +330,18 @@ export default function Home() {
           >
             INSTALL
           </button>
+        </div>
+      ) : (
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          color: '#737373',
+          padding: '0.5rem 0.75rem',
+          borderRadius: '0.5rem',
+          marginBottom: '1.5rem',
+          fontSize: '0.7rem',
+          textAlign: 'center'
+        }}>
+          アプリとして利用するには、ブラウザのメニューから「ホーム画面に追加」を選択してください
         </div>
       )}
 

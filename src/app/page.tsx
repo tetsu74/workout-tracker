@@ -14,15 +14,22 @@ type SetData = {
 };
 
 export default function Home() {
+export default function Home() {
   const [exercisesData, setExercisesData] = useState<CustomExercise[]>([]);
   const [isLoadingExercises, setIsLoadingExercises] = useState(true);
 
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  // Initialize state from localStorage or defaults
+  const [date, setDate] = useState(() => {
+    const now = new Date();
+    const jstOffset = 9 * 60 * 60 * 1000;
+    const jstDate = new Date(now.getTime() + jstOffset);
+    return jstDate.toISOString().split('T')[0];
+  });
+  
   const [muscleGroup, setMuscleGroup] = useState("");
   const [exercise, setExercise] = useState("");
   const [unit, setUnit] = useState<"kg" | "lbs">("kg");
   
-  // Batch set input state
   const [numSets, setNumSets] = useState(3);
   const [setsData, setSetsData] = useState<SetData[]>([
     { weight: "", reps: "" },
@@ -39,6 +46,72 @@ export default function Home() {
   const [newExerciseName, setNewExerciseName] = useState("");
   const [isAddingExercise, setIsAddingExercise] = useState(false);
 
+  const [lastRecords, setLastRecords] = useState<any[]>([]);
+  const [isLoadingLastRecords, setIsLoadingLastRecords] = useState(false);
+
+  // Fetch last performance when exercise changes
+  useEffect(() => {
+    if (!exercise) return;
+
+    async function fetchLastPerformance() {
+      setIsLoadingLastRecords(true);
+      try {
+        const res = await fetch('/api/records');
+        const data = await res.json();
+        if (data.records) {
+          // Filter by exercise and group by date
+          const exerciseRecords = data.records.filter((r: any) => r.exercise === exercise);
+          if (exerciseRecords.length > 0) {
+            // Find the most recent date
+            const sortedDates = Array.from(new Set(exerciseRecords.map((r: any) => r.date))).sort().reverse();
+            const lastDate = sortedDates[0];
+            const lastDateRecords = exerciseRecords.filter((r: any) => r.date === lastDate);
+            setLastRecords(lastDateRecords);
+          } else {
+            setLastRecords([]);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch last performance", err);
+      } finally {
+        setIsLoadingLastRecords(false);
+      }
+    }
+
+    fetchLastPerformance();
+  }, [exercise]);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('workoutFormState');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.muscleGroup) setMuscleGroup(parsed.muscleGroup);
+        if (parsed.exercise) setExercise(parsed.exercise);
+        if (parsed.unit) setUnit(parsed.unit);
+        if (parsed.numSets) setNumSets(parsed.numSets);
+        if (parsed.setsData) setSetsData(parsed.setsData);
+        if (parsed.memo) setMemo(parsed.memo);
+      } catch (e) {
+        console.error("Failed to load saved state", e);
+      }
+    }
+  }, []);
+
+  // Save to localStorage when state changes
+  useEffect(() => {
+    const stateToSave = {
+      muscleGroup,
+      exercise,
+      unit,
+      numSets,
+      setsData,
+      memo
+    };
+    localStorage.setItem('workoutFormState', JSON.stringify(stateToSave));
+  }, [muscleGroup, exercise, unit, numSets, setsData, memo]);
+
   useEffect(() => {
     async function fetchExercises() {
       try {
@@ -46,7 +119,8 @@ export default function Home() {
         const data = await res.json();
         if (data.exercises && data.exercises.length > 0) {
           setExercisesData(data.exercises);
-          setMuscleGroup(data.exercises[0].muscleGroup);
+          // Only set default if not loaded from localStorage
+          setMuscleGroup(prev => prev || data.exercises[0].muscleGroup);
         }
       } catch (err) {
         console.error("Failed to load exercises", err);
@@ -77,7 +151,6 @@ export default function Home() {
       const newSets = [...prev];
       if (numSets > prev.length) {
         for (let i = prev.length; i < numSets; i++) {
-          // Default to previous set's weight/reps if available
           const lastSet = prev[prev.length - 1] || { weight: "", reps: "" };
           newSets.push({ ...lastSet });
         }
@@ -111,7 +184,7 @@ export default function Home() {
         set: idx + 1,
         weight: weightInKg,
         reps: parseInt(s.reps),
-        memo: idx === 0 ? memo : "" // Save memo only for the first set of the batch to avoid redundancy in sheets, or save for all? User said "memo also per menu", so saving in first row of the menu entry is common.
+        memo: idx === 0 ? memo : ""
       };
     });
 
@@ -128,7 +201,20 @@ export default function Home() {
       
       // Reset after success
       setMemo("");
-      // Keep other fields for next exercise
+      setSetsData(setsData.map(s => ({ ...s, weight: "", reps: "" })));
+      localStorage.removeItem('workoutFormState');
+      
+      // Refresh last performance
+      const newLastRes = await fetch('/api/records');
+      const newLastData = await newLastRes.json();
+      if (newLastData.records) {
+        const exerciseRecords = newLastData.records.filter((r: any) => r.exercise === exercise);
+        if (exerciseRecords.length > 0) {
+          const sortedDates = Array.from(new Set(exerciseRecords.map((r: any) => r.date))).sort().reverse();
+          const lastDate = sortedDates[0];
+          setLastRecords(exerciseRecords.filter((r: any) => r.date === lastDate));
+        }
+      }
       
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'An error occurred' });
@@ -229,6 +315,44 @@ export default function Home() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Previous Performance Section */}
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '0.5rem',
+          padding: '0.75rem',
+          marginBottom: '1.5rem',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          fontSize: '0.8125rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#a3a3a3' }}>
+            <Info size={14} />
+            <span style={{ fontWeight: 500, letterSpacing: '0.02em' }}>PREVIOUS PERFORMANCE</span>
+          </div>
+          {isLoadingLastRecords ? (
+            <div style={{ color: '#737373', fontStyle: 'italic' }}>Loading previous data...</div>
+          ) : lastRecords.length > 0 ? (
+            <div>
+              <div style={{ marginBottom: '0.25rem', color: 'var(--primary)', fontWeight: 600 }}>
+                {lastRecords[0].date}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {lastRecords.map((r, i) => (
+                  <span key={i} style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>
+                    #{r.set}: {r.weight}kg × {r.reps}
+                  </span>
+                ))}
+              </div>
+              {lastRecords[0].memo && (
+                <div style={{ marginTop: '0.4rem', color: '#d4d4d4', fontSize: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.4rem' }}>
+                  Memo: {lastRecords[0].memo}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ color: '#737373' }}>No previous records found for this exercise.</div>
+          )}
         </div>
         
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>

@@ -31,12 +31,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <head>
-        <link rel="manifest" href="/manifest.json?v=3" />
-        <link rel="apple-touch-icon" href="/icon-192.png?v=3" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-      </head>
       <body className={inter.className}>
         <main className="container">
           <header className="header">
@@ -73,20 +67,6 @@ export default function RootLayout({
             {children}
           </div>
         </main>
-        
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js?v=3').then(function(registration) {
-                  console.log('SW registered');
-                }).catch(function(err) {
-                  console.log('SW failed', err);
-                });
-              });
-            }
-          `
-        }} />
       </body>
     </html>
   );

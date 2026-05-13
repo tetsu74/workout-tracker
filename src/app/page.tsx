@@ -48,48 +48,6 @@ export default function Home() {
   const [lastRecords, setLastRecords] = useState<any[]>([]);
   const [isLoadingLastRecords, setIsLoadingLastRecords] = useState(false);
 
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBtn, setShowInstallBtn] = useState(false);
-
-  useEffect(() => {
-    // Check if already in standalone mode
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      console.log('PWA: Already in standalone mode');
-      setShowInstallBtn(false);
-      return;
-    }
-
-    const handleBeforeInstallPrompt = (e: any) => {
-      console.log('PWA: beforeinstallprompt event fired');
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallBtn(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
-    window.addEventListener('appinstalled', () => {
-      console.log('PWA: App installed successfully');
-      setShowInstallBtn(false);
-      setDeferredPrompt(null);
-    });
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`PWA: User choice outcome: ${outcome}`);
-    if (outcome === 'accepted') {
-      setShowInstallBtn(false);
-      setDeferredPrompt(null);
-    }
-  };
-
   // Fetch last performance when exercise changes
   useEffect(() => {
     if (!exercise) return;
@@ -302,49 +260,6 @@ export default function Home() {
 
   return (
     <div>
-      {showInstallBtn ? (
-        <div style={{
-          backgroundColor: 'var(--primary)',
-          color: '#000',
-          padding: '0.75rem',
-          borderRadius: '0.5rem',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontWeight: 600,
-          fontSize: '0.875rem'
-        }}>
-          <span>アプリとしてインストールできます</span>
-          <button 
-            onClick={handleInstallClick}
-            style={{
-              backgroundColor: '#000',
-              color: '#fff',
-              border: 'none',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '0.25rem',
-              fontSize: '0.75rem',
-              fontWeight: 700
-            }}
-          >
-            INSTALL
-          </button>
-        </div>
-      ) : (
-        <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          color: '#737373',
-          padding: '0.5rem 0.75rem',
-          borderRadius: '0.5rem',
-          marginBottom: '1.5rem',
-          fontSize: '0.7rem',
-          textAlign: 'center'
-        }}>
-          アプリとして利用するには、ブラウザのメニューから「ホーム画面に追加」を選択してください
-        </div>
-      )}
-
       <div className="header" style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 300, letterSpacing: '0.05em' }}>NEW RECORD</h2>
       </div>

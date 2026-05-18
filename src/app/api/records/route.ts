@@ -14,7 +14,8 @@ export async function GET() {
       set: parseInt(row.get('Set')),
       weight: parseFloat(row.get('Weight')),
       reps: parseInt(row.get('Reps')),
-      memo: row.get('Memo') || ""
+      memo: row.get('Memo') || "",
+      unit: row.get('Unit') || "kg"
     }));
 
     return NextResponse.json({ records });
@@ -39,7 +40,8 @@ export async function POST(req: NextRequest) {
       Set: record.set,
       Weight: record.weight,
       Reps: record.reps,
-      Memo: record.memo || ""
+      Memo: record.memo || "",
+      Unit: record.unit || "kg"
     }));
 
     await sheet.addRows(rowsToAdd);

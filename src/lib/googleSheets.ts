@@ -79,11 +79,11 @@ export async function getGoogleSheet() {
   const recordsSheet = doc.sheetsByIndex[0];
   try {
     await recordsSheet.loadHeaderRow();
-    if (!recordsSheet.headerValues.includes('Memo')) {
-       await recordsSheet.setHeaderRow(['Date', 'MuscleGroup', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo']);
+    if (!recordsSheet.headerValues.includes('Unit')) {
+       await recordsSheet.setHeaderRow(['Date', 'MuscleGroup', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo', 'Unit']);
     }
   } catch (e) {
-    await recordsSheet.setHeaderRow(['Date', 'MuscleGroup', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo']);
+    await recordsSheet.setHeaderRow(['Date', 'MuscleGroup', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo', 'Unit']);
   }
 
   let exercisesSheet = doc.sheetsByTitle['Exercises'];

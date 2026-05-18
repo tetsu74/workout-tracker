@@ -12,6 +12,7 @@ type Record = {
   set: number;
   weight: number;
   reps: number;
+  unit?: string;
 };
 
 const COLORS = ['#cba258', '#8b7355', '#6b8e23', '#b22222', '#4682b4', '#9370db', '#20b2aa'];
@@ -51,11 +52,13 @@ export default function Dashboard() {
     const volumeByMuscle: { [key: string]: number } = {};
     recentRecords.forEach(r => {
       if (!volumeByMuscle[r.muscleGroup]) volumeByMuscle[r.muscleGroup] = 0;
-      volumeByMuscle[r.muscleGroup] += r.weight * r.reps;
+      const weightInKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
+      volumeByMuscle[r.muscleGroup] += weightInKg * r.reps;
     });
 
     return Object.entries(volumeByMuscle)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, MathRound: Math.round(value) }))
+      .map(({ name, MathRound }) => ({ name, value: MathRound }))
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [records]);
@@ -73,7 +76,8 @@ export default function Dashboard() {
         muscleGroups.forEach(mg => volumeByWeek[weekStartStr][mg] = 0);
       }
       
-      const volume = r.weight * r.reps;
+      const weightInKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
+      const volume = Math.round(weightInKg * r.reps * 10) / 10;
       volumeByWeek[weekStartStr][r.muscleGroup] = (volumeByWeek[weekStartStr][r.muscleGroup] || 0) + volume;
       volumeByWeek[weekStartStr].total += volume;
     });

@@ -11,6 +11,8 @@ type Record = {
   set: number;
   weight: number;
   reps: number;
+  unit?: string;
+  memo?: string;
 };
 
 type ExercisePlan = {
@@ -19,6 +21,7 @@ type ExercisePlan = {
   sets: number;
   targetWeight: number;
   targetReps: number;
+  targetUnit?: string;
 };
 
 type DayPlan = {
@@ -152,10 +155,11 @@ export default function TrainerPage() {
                         const exName = exerciseRecords[0].exercise;
                         const sets = exerciseRecords.length;
                         const maxWeight = Math.max(...exerciseRecords.map(r => r.weight));
+                        const unit = exerciseRecords[0].unit || "kg";
                         return (
                           <div key={exName} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
                             <span style={{ color: '#e5e5e5' }}>{exName}</span>
-                            <span style={{ color: '#a0a0a0' }}>{sets} sets / Max {maxWeight}kg</span>
+                            <span style={{ color: '#a0a0a0' }}>{sets} sets / Max {maxWeight}{unit}</span>
                           </div>
                         );
                       })}
@@ -227,7 +231,7 @@ export default function TrainerPage() {
                           {ex.sets}
                         </td>
                         <td style={{ textAlign: 'right', padding: '0.75rem 0.5rem', color: 'var(--primary)' }}>
-                          {ex.targetWeight}kg × {ex.targetReps}
+                          {ex.targetWeight}{ex.targetUnit || 'kg'} × {ex.targetReps}
                         </td>
                       </tr>
                     ))}

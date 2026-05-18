@@ -179,18 +179,15 @@ export default function Home() {
     setMessage(null);
 
     const payload = setsData.map((s, idx) => {
-      let weightInKg = parseFloat(s.weight);
-      if (unit === "lbs") {
-        weightInKg = Math.round(weightInKg * 0.453592 * 10) / 10;
-      }
       return {
         date,
         muscleGroup,
         exercise,
         set: idx + 1,
-        weight: weightInKg,
+        weight: parseFloat(s.weight),
         reps: parseInt(s.reps),
-        memo: idx === 0 ? memo : ""
+        memo: idx === 0 ? memo : "",
+        unit: unit
       };
     });
 
@@ -346,7 +343,7 @@ export default function Home() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {lastRecords.map((r, i) => (
                   <span key={i} style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>
-                    #{r.set}: {r.weight}kg × {r.reps}
+                    #{r.set}: {r.weight}{r.unit || "kg"} × {r.reps}
                   </span>
                 ))}
               </div>

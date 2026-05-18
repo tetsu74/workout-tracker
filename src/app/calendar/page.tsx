@@ -13,6 +13,7 @@ type Record = {
   set: number;
   weight: number;
   reps: number;
+  unit?: string;
 };
 
 export default function CalendarPage() {
@@ -113,7 +114,7 @@ export default function CalendarPage() {
                       {sets.map(s => (
                         <tr key={`${s.exercise}-${s.set}`}>
                           <td style={{ padding: '0.25rem' }}>{s.set}</td>
-                          <td style={{ textAlign: 'right', padding: '0.25rem', color: 'var(--primary)' }}>{s.weight} kg</td>
+                          <td style={{ textAlign: 'right', padding: '0.25rem', color: 'var(--primary)' }}>{s.weight} {s.unit || "kg"}</td>
                           <td style={{ textAlign: 'right', padding: '0.25rem' }}>{s.reps}</td>
                         </tr>
                       ))}

@@ -11,6 +11,7 @@ type Record = {
   set: number;
   weight: number;
   reps: number;
+  unit?: string;
   memo?: string;
 };
 
@@ -35,14 +36,25 @@ export default function HistoryPage() {
         
         const allRecords: Record[] = data.records || [];
         
+        // Exclude today's records (Japan Standard Time)
+        const getJstTodayStr = () => {
+          const now = new Date();
+          const jstOffset = 9 * 60 * 60 * 1000;
+          const jstDate = new Date(now.getTime() + jstOffset);
+          return jstDate.toISOString().split('T')[0];
+        };
+        const todayStr = getJstTodayStr();
+        const pastRecords = allRecords.filter(r => r.date !== todayStr);
+
         const grouped: { [key: string]: Record[] } = {};
-        allRecords.forEach(r => {
+        pastRecords.forEach(r => {
           if (!grouped[r.date]) grouped[r.date] = [];
           grouped[r.date].push(r);
         });
 
         const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-        const recentDates = sortedDates.slice(0, 10);
+        // Show only the past 4 days excluding today
+        const recentDates = sortedDates.slice(0, 4);
         
         const history = recentDates.map(date => ({
           date,
@@ -111,7 +123,7 @@ export default function HistoryPage() {
                     const isExpanded = expandedItems.includes(itemId);
 
                     // Summary of sets (e.g. 60kg x 10, 60kg x 10...)
-                    const summary = exerciseRecords.map(r => `${r.weight}kg`).slice(0, 3).join(', ') + (exerciseRecords.length > 3 ? '...' : '');
+                    const summary = exerciseRecords.map(r => `${r.weight}${r.unit || "kg"}`).slice(0, 3).join(', ') + (exerciseRecords.length > 3 ? '...' : '');
 
                     return (
                       <div key={itemId} style={{ borderBottom: exIdx < groupRecordsByExercise(dayData.records).length - 1 ? '1px solid #222' : 'none' }}>
@@ -157,7 +169,7 @@ export default function HistoryPage() {
                                 {exerciseRecords.sort((a,b) => a.set - b.set).map((r, i) => (
                                   <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
                                     <td style={{ padding: '0.4rem 0.5rem', color: '#888' }}>{r.set}</td>
-                                    <td style={{ textAlign: 'right', padding: '0.4rem 0.5rem', color: 'var(--primary)', fontWeight: 500 }}>{r.weight} kg</td>
+                                    <td style={{ textAlign: 'right', padding: '0.4rem 0.5rem', color: 'var(--primary)', fontWeight: 500 }}>{r.weight} {r.unit || "kg"}</td>
                                     <td style={{ textAlign: 'right', padding: '0.4rem 0.5rem', color: '#d4d4d4' }}>{r.reps}</td>
                                   </tr>
                                 ))}

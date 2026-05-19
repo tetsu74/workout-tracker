@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { PlusCircle, Loader2, Plus, Minus, Info } from "lucide-react";
+import { PlusCircle, Loader2, Plus, Minus, Info, History } from "lucide-react";
 
 type CustomExercise = {
   muscleGroup: string;
@@ -47,6 +47,49 @@ export default function Home() {
 
   const [lastRecords, setLastRecords] = useState<any[]>([]);
   const [isLoadingLastRecords, setIsLoadingLastRecords] = useState(false);
+
+  const [fourSessionsAgoMenu, setFourSessionsAgoMenu] = useState<{ date: string; exercises: { name: string; muscleGroup: string }[] } | null>(null);
+  const [isLoadingFourSessionsAgo, setIsLoadingFourSessionsAgo] = useState(false);
+
+  const fetchFourSessionsAgoMenu = async (targetDate: string) => {
+    setIsLoadingFourSessionsAgo(true);
+    try {
+      const res = await fetch('/api/records');
+      const data = await res.json();
+      if (data.records) {
+        const allRecords: any[] = data.records;
+        // Get all unique dates strictly before the targetDate JST string
+        const uniqueDates = Array.from(new Set(allRecords.map(r => r.date)))
+          .filter(d => d < targetDate)
+          .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+        if (uniqueDates.length >= 4) {
+          const targetSessionDate = uniqueDates[3]; // 4th session prior
+          const targetRecords = allRecords.filter(r => r.date === targetSessionDate);
+          
+          // Get unique exercises
+          const uniqueExMap = new Map<string, string>();
+          targetRecords.forEach(r => {
+            uniqueExMap.set(r.exercise, r.muscleGroup);
+          });
+          const exercisesList = Array.from(uniqueExMap.entries()).map(([name, muscleGroup]) => ({ name, muscleGroup }));
+          setFourSessionsAgoMenu({ date: targetSessionDate, exercises: exercisesList });
+        } else {
+          setFourSessionsAgoMenu(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch 4 sessions ago menu", err);
+    } finally {
+      setIsLoadingFourSessionsAgo(false);
+    }
+  };
+
+  useEffect(() => {
+    if (date) {
+      fetchFourSessionsAgoMenu(date);
+    }
+  }, [date]);
 
   // Fetch last performance when exercise changes
   useEffect(() => {
@@ -219,6 +262,8 @@ export default function Home() {
         }
       }
       
+      fetchFourSessionsAgoMenu(date);
+      
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'An error occurred' });
     } finally {
@@ -287,6 +332,45 @@ export default function Home() {
             required
           />
         </div>
+
+        {/* 4 Sessions Ago Menu */}
+        {fourSessionsAgoMenu && (
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+            borderRadius: '0.5rem',
+            padding: '0.75rem',
+            marginBottom: '1.5rem',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            fontSize: '0.8125rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem', color: 'var(--primary)' }}>
+              <History size={14} />
+              <span style={{ fontWeight: 600, letterSpacing: '0.02em' }}>
+                4 SESSIONS AGO MENU ({fourSessionsAgoMenu.date})
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {fourSessionsAgoMenu.exercises.map((ex, i) => (
+                <span key={i} style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                  padding: '0.2rem 0.5rem', 
+                  borderRadius: '0.25rem',
+                  border: '1px solid rgba(255, 255, 255, 0.03)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}>
+                  <span style={{ fontSize: '0.65rem', backgroundColor: '#333', padding: '0.05rem 0.3rem', borderRadius: '1rem', color: '#a0a0a0' }}>
+                    {ex.muscleGroup}
+                  </span>
+                  <span style={{ color: '#e5e5e5', fontWeight: 500 }}>
+                    {ex.name}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
           <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>

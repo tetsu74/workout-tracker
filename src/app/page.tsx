@@ -439,7 +439,7 @@ export default function Home() {
                       <div style={{ display: 'flex', flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <input
                           type="number"
-                          style={{ flex: 1, backgroundColor: 'transparent', border: 'none', padding: '0.75rem', color: 'var(--foreground)', fontSize: '1rem', textAlign: 'center', outline: 'none' }}
+                          style={{ flex: 1, minWidth: 0, backgroundColor: 'transparent', border: 'none', padding: '0.75rem 0.25rem', color: 'var(--foreground)', fontSize: '1rem', textAlign: 'center', outline: 'none' }}
                           placeholder="Weight"
                           step="0.5"
                           value={s.weight}
@@ -448,7 +448,7 @@ export default function Home() {
                         <div style={{ width: '1px', backgroundColor: 'rgba(255,255,255,0.05)' }} />
                         <input
                           type="number"
-                          style={{ flex: 1, backgroundColor: 'transparent', border: 'none', padding: '0.75rem', color: 'var(--foreground)', fontSize: '1rem', textAlign: 'center', outline: 'none' }}
+                          style={{ flex: 1, minWidth: 0, backgroundColor: 'transparent', border: 'none', padding: '0.75rem 0.25rem', color: 'var(--foreground)', fontSize: '1rem', textAlign: 'center', outline: 'none' }}
                           placeholder="Reps"
                           value={s.reps}
                           onChange={(e) => handleSetChange(ex.id, idx, 'reps', e.target.value)}

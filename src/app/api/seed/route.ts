@@ -41,7 +41,7 @@ export async function POST() {
     // Fast clear of all data rows
     await sheet.clearRows();
 
-    const dummyData = [];
+    const dummyData: any[] = [];
     const today = new Date();
     
     // Generate past 8 weeks of data (56 days)

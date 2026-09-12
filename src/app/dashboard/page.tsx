@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, ComposedChart } from 'recharts';
 import { startOfWeek, format, parseISO } from 'date-fns';
 import { Loader2 } from "lucide-react";
 
@@ -99,11 +99,14 @@ export default function Dashboard() {
     const groupedByDate: { [date: string]: any } = {};
     exerciseRecords.forEach(r => {
       if (!groupedByDate[r.date]) {
-        groupedByDate[r.date] = { date: r.date, formattedDate: format(parseISO(r.date), 'MM/dd') };
+        groupedByDate[r.date] = { date: r.date, formattedDate: format(parseISO(r.date), 'MM/dd'), totalVolume: 0 };
       }
       if (r.set <= 3) {
         groupedByDate[r.date][`set${r.set}`] = r.weight; // Show raw weight (kg/lbs)
       }
+      
+      const weightInKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
+      groupedByDate[r.date].totalVolume += Math.round(weightInKg * r.reps);
     });
 
     return Object.values(groupedByDate).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -183,20 +186,24 @@ export default function Dashboard() {
         {progressionData.length > 0 ? (
           <div style={{ height: 350, width: '100%', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '0.25rem', padding: '1rem 1rem 1rem 0', border: '1px solid var(--border)' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={progressionData}>
+              <ComposedChart data={progressionData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                 <XAxis dataKey="formattedDate" stroke="#737373" fontSize={12} tickMargin={10} />
-                <YAxis stroke="#737373" fontSize={12} tickMargin={10} width={60} domain={['auto', 'auto']} />
+                <YAxis yAxisId="left" stroke="#737373" fontSize={12} tickMargin={10} width={40} domain={['auto', 'auto']} />
+                <YAxis yAxisId="right" orientation="right" stroke="#555" fontSize={12} tickMargin={10} width={50} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#121212', border: '1px solid #333', borderRadius: '0.25rem' }}
                   itemStyle={{ color: 'var(--foreground)' }}
                   labelStyle={{ color: '#a0a0a0', marginBottom: '0.25rem' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '10px' }} />
-                <Line type="monotone" dataKey="set1" name="Set 1" stroke="#cba258" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="set2" name="Set 2" stroke="#8b7355" strokeWidth={3} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="set3" name="Set 3" stroke="#6b8e23" strokeWidth={3} dot={{ r: 4 }} />
-              </LineChart>
+                
+                <Bar yAxisId="right" dataKey="totalVolume" name="3s Total Volume" fill="rgba(255, 255, 255, 0.08)" radius={[4,4,0,0]} />
+                
+                <Line yAxisId="left" type="monotone" dataKey="set1" name="Set 1 Weight" stroke="#cba258" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line yAxisId="left" type="monotone" dataKey="set2" name="Set 2 Weight" stroke="#8b7355" strokeWidth={3} dot={{ r: 4 }} />
+                <Line yAxisId="left" type="monotone" dataKey="set3" name="Set 3 Weight" stroke="#6b8e23" strokeWidth={3} dot={{ r: 4 }} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         ) : (

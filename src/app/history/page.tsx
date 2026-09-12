@@ -6,7 +6,7 @@ import { format, parseISO } from "date-fns";
 
 type Record = {
   date: string;
-  muscleGroup: string;
+  routine: string;
   exercise: string;
   set: number;
   weight: number;
@@ -117,7 +117,7 @@ export default function HistoryPage() {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {groupRecordsByExercise(dayData.records).map((exerciseRecords, exIdx) => {
                     const exName = exerciseRecords[0].exercise;
-                    const muscleGroup = exerciseRecords[0].muscleGroup;
+                    const routine = exerciseRecords[0].routine;
                     const exerciseMemo = exerciseRecords.find(r => r.memo)?.memo;
                     const itemId = `${dayData.date}-${exName}`;
                     const isExpanded = expandedItems.includes(itemId);
@@ -148,7 +148,7 @@ export default function HistoryPage() {
                             )}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <span style={{ fontSize: '0.65rem', backgroundColor: '#333', padding: '0.1rem 0.4rem', borderRadius: '1rem', color: '#a0a0a0' }}>{muscleGroup}</span>
+                            <span style={{ fontSize: '0.65rem', backgroundColor: '#333', padding: '0.1rem 0.4rem', borderRadius: '1rem', color: '#a0a0a0' }}>{routine}</span>
                             <div style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s', color: '#737373' }}>
                               ▼
                             </div>

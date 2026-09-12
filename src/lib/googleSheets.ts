@@ -7,62 +7,32 @@ const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!;
 
 let docInstance: GoogleSpreadsheet | null = null;
 
-const DEFAULT_EXERCISES = [
-  { MuscleGroup: '胸', Exercise: 'ベンチプレス' },
-  { MuscleGroup: '胸', Exercise: 'ダンベルフライ' },
-  { MuscleGroup: '背中', Exercise: 'デッドリフト' },
-  { MuscleGroup: '背中', Exercise: 'ラットプルダウン' },
-  { MuscleGroup: '背中', Exercise: 'ベントオーバーロウ' },
-  { MuscleGroup: '脚', Exercise: 'スクワット' },
-  { MuscleGroup: '脚', Exercise: 'レッグプレス' },
-  { MuscleGroup: '肩', Exercise: 'オーバーヘッドプレス' },
-  { MuscleGroup: '肩', Exercise: 'サイドレイズ' },
-  { MuscleGroup: '腕', Exercise: 'ダンベルカール' },
-  { MuscleGroup: '腕', Exercise: 'トライセプスエクステンション' },
-  { MuscleGroup: '腹筋', Exercise: 'クランチ' },
-  { MuscleGroup: '腹筋', Exercise: 'レッグレイズ' },
+const DEFAULT_ROUTINES = [
+  // Push 1
+  { Routine: 'Push 1', Exercise: 'フラットバーベルベンチプレス', TargetSets: 3, TargetReps: '4-6', Order: 1 },
+  { Routine: 'Push 1', Exercise: 'レッグプレス', TargetSets: 3, TargetReps: '8-10', Order: 2 },
+  { Routine: 'Push 1', Exercise: 'ダンベルショルダープレス', TargetSets: 3, TargetReps: '8-10', Order: 3 },
+  { Routine: 'Push 1', Exercise: 'ケーブルトライセプスプッシュダウン', TargetSets: 3, TargetReps: '10-12', Order: 4 },
+  { Routine: 'Push 1', Exercise: 'マシンカーフレイズ', TargetSets: 3, TargetReps: '12-15', Order: 5 },
+  // Pull 1
+  { Routine: 'Pull 1', Exercise: 'トラップバーデッドリフト', TargetSets: 3, TargetReps: '4-6', Order: 1 },
+  { Routine: 'Pull 1', Exercise: 'ラットプルダウン', TargetSets: 3, TargetReps: '8-10', Order: 2 },
+  { Routine: 'Pull 1', Exercise: 'ケーブルシーテッドロー', TargetSets: 3, TargetReps: '10-12', Order: 3 },
+  { Routine: 'Pull 1', Exercise: 'ダンベルリアレイズ', TargetSets: 3, TargetReps: '12-15', Order: 4 },
+  { Routine: 'Pull 1', Exercise: 'インクラインダンベルカール', TargetSets: 3, TargetReps: '10-12', Order: 5 },
+  // Push 2
+  { Routine: 'Push 2', Exercise: 'バーベルスクワット', TargetSets: 3, TargetReps: '4-6', Order: 1 },
+  { Routine: 'Push 2', Exercise: 'インクラインダンベルプレス', TargetSets: 3, TargetReps: '8-10', Order: 2 },
+  { Routine: 'Push 2', Exercise: 'ディップス', TargetSets: 3, TargetReps: '限界まで', Order: 3 },
+  { Routine: 'Push 2', Exercise: 'ケーブルサイドレイズ', TargetSets: 3, TargetReps: '12-15', Order: 4 },
+  { Routine: 'Push 2', Exercise: 'ペックデック', TargetSets: 3, TargetReps: '12-15', Order: 5 },
+  // Pull 2
+  { Routine: 'Pull 2', Exercise: 'ペンドレイロー', TargetSets: 3, TargetReps: '4-6', Order: 1 },
+  { Routine: 'Pull 2', Exercise: 'チンニング', TargetSets: 3, TargetReps: '限界まで', Order: 2 },
+  { Routine: 'Pull 2', Exercise: 'レッグカール', TargetSets: 3, TargetReps: '10-12', Order: 3 },
+  { Routine: 'Pull 2', Exercise: 'リバース・ペックデック', TargetSets: 3, TargetReps: '12-15', Order: 4 },
+  { Routine: 'Pull 2', Exercise: 'ハンマーカール', TargetSets: 3, TargetReps: '10-12', Order: 5 },
 ];
-
-function generateDummyData() {
-  const dummyData: any[] = [];
-  const today = new Date();
-  
-  for (let i = 30; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    
-    if (i % 2 === 0 || i % 3 === 0) {
-      const dateStr = d.toISOString().split('T')[0];
-      const workoutType = i % 3; 
-      
-      let sessionExercises: typeof DEFAULT_EXERCISES = [];
-      if (workoutType === 0) sessionExercises = [DEFAULT_EXERCISES[0], DEFAULT_EXERCISES[7], DEFAULT_EXERCISES[10]];
-      else if (workoutType === 1) sessionExercises = [DEFAULT_EXERCISES[2], DEFAULT_EXERCISES[3], DEFAULT_EXERCISES[9]];
-      else sessionExercises = [DEFAULT_EXERCISES[5], DEFAULT_EXERCISES[11], DEFAULT_EXERCISES[12]];
-
-      sessionExercises.forEach(ex => {
-        const memo = i % 5 === 0 ? "Good form, felt strong." : "";
-        for (let set = 1; set <= 3; set++) {
-          const baseWeight = ex.MuscleGroup === '脚' ? 80 : ex.MuscleGroup === '胸' || ex.MuscleGroup === '背中' ? 60 : ex.MuscleGroup === '腹筋' ? 0 : 20;
-          const progress = Math.floor((30 - i) / 5) * 2.5; 
-          let weight = baseWeight > 0 ? baseWeight + progress - (set - 1) * 2.5 : 0;
-          const reps = 10 - (set - 1); 
-          
-          dummyData.push({
-            Date: dateStr,
-            MuscleGroup: ex.MuscleGroup,
-            Exercise: ex.Exercise,
-            Set: set,
-            Weight: weight,
-            Reps: reps,
-            Memo: memo
-          });
-        }
-      });
-    }
-  }
-  return dummyData;
-}
 
 export async function getGoogleSheet() {
   if (docInstance) return docInstance;
@@ -76,35 +46,25 @@ export async function getGoogleSheet() {
   const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
   await doc.loadInfo(); 
   
-  const recordsSheet = doc.sheetsByIndex[0];
+  let recordsSheet = doc.sheetsByTitle['Records_v2'];
+  if (!recordsSheet) {
+    recordsSheet = await doc.addSheet({ title: 'Records_v2', headerValues: ['Date', 'Routine', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo', 'Unit'] });
+  }
+
+  let routinesSheet = doc.sheetsByTitle['Routines'];
+  if (!routinesSheet) {
+    routinesSheet = await doc.addSheet({ title: 'Routines', headerValues: ['Routine', 'Exercise', 'TargetSets', 'TargetReps', 'Order'] });
+    await routinesSheet.addRows(DEFAULT_ROUTINES);
+  }
+
+  // Clear old sheets as requested
   try {
-    await recordsSheet.loadHeaderRow();
-    if (!recordsSheet.headerValues.includes('Unit')) {
-       await recordsSheet.setHeaderRow(['Date', 'MuscleGroup', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo', 'Unit']);
-    }
+    const oldRecords = doc.sheetsByTitle['シート1'];
+    if (oldRecords) await oldRecords.delete();
+    const oldExercises = doc.sheetsByTitle['Exercises'];
+    if (oldExercises) await oldExercises.delete();
   } catch (e) {
-    await recordsSheet.setHeaderRow(['Date', 'MuscleGroup', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo', 'Unit']);
-  }
-
-  let exercisesSheet = doc.sheetsByTitle['Exercises'];
-  if (!exercisesSheet) {
-    exercisesSheet = await doc.addSheet({ title: 'Exercises', headerValues: ['MuscleGroup', 'Exercise'] });
-    await exercisesSheet.addRows(DEFAULT_EXERCISES);
-  } else {
-    const rows = await exercisesSheet.getRows();
-    const hasAbs = rows.some(r => r.get('MuscleGroup') === '腹筋');
-    if (!hasAbs) {
-      await exercisesSheet.addRows([
-        { MuscleGroup: '腹筋', Exercise: 'クランチ' },
-        { MuscleGroup: '腹筋', Exercise: 'レッグレイズ' }
-      ]);
-    }
-  }
-
-  const rows = await recordsSheet.getRows();
-  if (rows.length === 0) {
-    const dummy = generateDummyData();
-    await recordsSheet.addRows(dummy);
+    console.error("Failed to delete old sheets", e);
   }
 
   docInstance = doc;

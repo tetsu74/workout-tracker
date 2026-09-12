@@ -57,9 +57,9 @@ export default function RootLayout({
               <LineChart size={16} />
               <span>Summary</span>
             </Link>
-            <Link href="/trainer" className="nav-item">
+            <Link href="/routines" className="nav-item">
               <Sparkles size={16} />
-              <span>AI Trainer</span>
+              <span>Master</span>
             </Link>
           </nav>
 

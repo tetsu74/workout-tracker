@@ -4,12 +4,15 @@ import { getGoogleSheet } from '@/lib/googleSheets';
 export async function GET() {
   try {
     const doc = await getGoogleSheet();
-    const sheet = doc.sheetsByIndex[0];
+    const sheet = doc.sheetsByTitle['Records_v2'];
+    if (!sheet) {
+      return NextResponse.json({ records: [] });
+    }
     const rows = await sheet.getRows();
     
     const records = rows.map(row => ({
       date: row.get('Date'),
-      muscleGroup: row.get('MuscleGroup'),
+      routine: row.get('Routine'),
       exercise: row.get('Exercise'),
       set: parseInt(row.get('Set')),
       weight: parseFloat(row.get('Weight')),
@@ -28,14 +31,18 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const doc = await getGoogleSheet();
-    const sheet = doc.sheetsByIndex[0];
+    const sheet = doc.sheetsByTitle['Records_v2'];
+
+    if (!sheet) {
+      return NextResponse.json({ error: 'Records sheet not found' }, { status: 500 });
+    }
 
     // Handle both single object and array of objects
     const records = Array.isArray(body) ? body : [body];
 
     const rowsToAdd = records.map(record => ({
       Date: record.date,
-      MuscleGroup: record.muscleGroup,
+      Routine: record.routine,
       Exercise: record.exercise,
       Set: record.set,
       Weight: record.weight,

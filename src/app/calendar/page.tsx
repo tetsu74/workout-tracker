@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 
 type Record = {
   date: string;
-  muscleGroup: string;
+  routine: string;
   exercise: string;
   set: number;
   weight: number;
@@ -94,13 +94,13 @@ export default function CalendarPage() {
             {/* Group by Exercise */}
             {Array.from(new Set(selectedDayRecords.map(r => r.exercise))).map(exercise => {
               const sets = selectedDayRecords.filter(r => r.exercise === exercise).sort((a, b) => a.set - b.set);
-              const muscleGroup = sets[0].muscleGroup;
+              const routine = sets[0].routine;
               
               return (
                 <div key={exercise} style={{ backgroundColor: 'var(--input-bg)', padding: '1rem', borderRadius: '0.25rem', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <h4 style={{ fontWeight: 600 }}>{exercise}</h4>
-                    <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--border)', padding: '0.1rem 0.5rem', borderRadius: '1rem', color: '#a0a0a0' }}>{muscleGroup}</span>
+                    <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--border)', padding: '0.1rem 0.5rem', borderRadius: '1rem', color: '#a0a0a0' }}>{routine}</span>
                   </div>
                   <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
                     <thead>

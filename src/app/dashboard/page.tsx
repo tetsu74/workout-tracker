@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 
 type Record = {
   date: string;
-  muscleGroup: string;
+  routine: string;
   exercise: string;
   set: number;
   weight: number;
@@ -40,32 +40,32 @@ export default function Dashboard() {
     fetchRecords();
   }, []);
 
-  const muscleGroups = useMemo(() => {
-    return Array.from(new Set(records.map(r => r.muscleGroup))).filter(Boolean);
+  const routines = useMemo(() => {
+    return Array.from(new Set(records.map(r => r.routine))).filter(Boolean);
   }, [records]);
 
-  // Data for Pie Chart: Volume by Muscle Group (Last 30 days)
+  // Data for Pie Chart: Volume by Routine (Last 30 days)
   const pieData = useMemo(() => {
     const thirtyDaysAgo = subDays(new Date(), 30);
     const recentRecords = records.filter(r => isAfter(parseISO(r.date), thirtyDaysAgo));
     
-    const volumeByMuscle: { [key: string]: number } = {};
+    const volumeByRoutine: { [key: string]: number } = {};
     recentRecords.forEach(r => {
-      if (!volumeByMuscle[r.muscleGroup]) volumeByMuscle[r.muscleGroup] = 0;
+      if (!volumeByRoutine[r.routine]) volumeByRoutine[r.routine] = 0;
       const weightInKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
-      volumeByMuscle[r.muscleGroup] += weightInKg * r.reps;
+      volumeByRoutine[r.routine] += weightInKg * r.reps;
     });
 
-    return Object.entries(volumeByMuscle)
+    return Object.entries(volumeByRoutine)
       .map(([name, value]) => ({ name, MathRound: Math.round(value) }))
       .map(({ name, MathRound }) => ({ name, value: MathRound }))
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [records]);
 
-  // Data for Stacked Bar Chart: Weekly Volume by Muscle Group
+  // Data for Stacked Bar Chart: Weekly Volume by Routine
   const weeklyData = useMemo(() => {
-    const volumeByWeek: { [weekStart: string]: { [muscleGroup: string]: number, total: number } } = {};
+    const volumeByWeek: { [weekStart: string]: { [routine: string]: number, total: number } } = {};
     
     records.forEach(r => {
       const date = parseISO(r.date);
@@ -73,19 +73,19 @@ export default function Dashboard() {
       
       if (!volumeByWeek[weekStartStr]) {
         volumeByWeek[weekStartStr] = { total: 0 };
-        muscleGroups.forEach(mg => volumeByWeek[weekStartStr][mg] = 0);
+        routines.forEach(rt => volumeByWeek[weekStartStr][rt] = 0);
       }
       
       const weightInKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
       const volume = Math.round(weightInKg * r.reps * 10) / 10;
-      volumeByWeek[weekStartStr][r.muscleGroup] = (volumeByWeek[weekStartStr][r.muscleGroup] || 0) + volume;
+      volumeByWeek[weekStartStr][r.routine] = (volumeByWeek[weekStartStr][r.routine] || 0) + volume;
       volumeByWeek[weekStartStr].total += volume;
     });
 
     return Object.entries(volumeByWeek)
       .map(([week, data]) => ({ week: format(parseISO(week), 'MM/dd'), ...data, rawWeek: week }))
       .sort((a, b) => new Date(a.rawWeek).getTime() - new Date(b.rawWeek).getTime());
-  }, [records, muscleGroups]);
+  }, [records, routines]);
 
   if (isLoading) {
     return (
@@ -116,7 +116,7 @@ export default function Dashboard() {
               Weekly Volume Trend (kg)
             </h3>
             <p style={{ color: '#737373', fontSize: '0.75rem' }}>
-              漸進性過負荷（トータルボリューム）の推移
+              メニューごとのトータルボリューム推移
             </p>
           </div>
           <select 
@@ -125,9 +125,9 @@ export default function Dashboard() {
             value={weeklyFilter}
             onChange={(e) => setWeeklyFilter(e.target.value)}
           >
-            <option value="All">すべての部位</option>
-            {muscleGroups.map(mg => (
-              <option key={mg} value={mg}>{mg}</option>
+            <option value="All">すべてのメニュー</option>
+            {routines.map(rt => (
+              <option key={rt} value={rt}>{rt}</option>
             ))}
           </select>
         </div>
@@ -145,14 +145,14 @@ export default function Dashboard() {
               />
               <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '10px' }} />
               {weeklyFilter === "All" ? (
-                muscleGroups.map((mg, index) => (
-                  <Bar key={mg} dataKey={mg} name={mg} stackId="a" fill={COLORS[index % COLORS.length]} />
+                routines.map((rt, index) => (
+                  <Bar key={rt} dataKey={rt} name={rt} stackId="a" fill={COLORS[index % COLORS.length]} />
                 ))
               ) : (
                 <Bar 
                   dataKey={weeklyFilter} 
                   name={weeklyFilter} 
-                  fill={COLORS[muscleGroups.indexOf(weeklyFilter) % COLORS.length] || COLORS[0]} 
+                  fill={COLORS[routines.indexOf(weeklyFilter) % COLORS.length] || COLORS[0]} 
                 />
               )}
             </BarChart>
@@ -165,7 +165,7 @@ export default function Dashboard() {
           Volume Balance (Last 30 Days)
         </h3>
         <p style={{ marginBottom: '1rem', color: '#737373', fontSize: '0.75rem' }}>
-          直近30日間の部位別トレーニング割合
+          直近30日間のメニュー別トレーニング割合
         </p>
         <div style={{ height: 300, width: '100%', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '0.25rem', padding: '1rem', border: '1px solid var(--border)' }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -180,7 +180,7 @@ export default function Dashboard() {
                 dataKey="value"
               >
                 {pieData.map((entry, index) => {
-                  const colorIndex = muscleGroups.indexOf(entry.name);
+                  const colorIndex = routines.indexOf(entry.name);
                   return <Cell key={`cell-${index}`} fill={COLORS[colorIndex >= 0 ? colorIndex % COLORS.length : index % COLORS.length]} />;
                 })}
               </Pie>

@@ -454,14 +454,6 @@ export default function Home() {
                           onChange={(e) => handleSetChange(ex.id, idx, 'reps', e.target.value)}
                         />
                       </div>
-                      <button 
-                        type="button" 
-                        onClick={() => startTimer(timerDuration)} 
-                        style={{ padding: '0.5rem', color: '#737373', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '0.25rem' }}
-                        title="Start 90s Rest"
-                      >
-                        <Timer size={16} />
-                      </button>
                     </div>
                   ))}
                   {selectedRoutineName === 'Extra' && (
@@ -526,6 +518,32 @@ export default function Home() {
           </button>
         )}
       </form>
+
+      {/* Floating Action Button (FAB) for Timer when inactive */}
+      {!showTimer && selectedRoutineName && (
+        <button
+          onClick={() => startTimer(timerDuration)}
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '1.5rem',
+            backgroundColor: 'var(--primary)',
+            color: '#121212',
+            width: '3.5rem',
+            height: '3.5rem',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(203, 162, 88, 0.4)',
+            zIndex: 99,
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          <Timer size={24} />
+        </button>
+      )}
 
       {/* Floating Rest Timer */}
       {showTimer && (

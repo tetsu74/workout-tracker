@@ -22,7 +22,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [weeklyFilter, setWeeklyFilter] = useState<string>("All");
+  const [cycleFilter, setCycleFilter] = useState<string>("All");
   
   // States for Progression Chart
   const [progressionRoutine, setProgressionRoutine] = useState<string>("");
@@ -66,28 +66,48 @@ export default function Dashboard() {
     }
   }, [exercisesForRoutine, progressionExercise]);
 
-  // Data for Stacked Bar Chart: Weekly Volume by Routine
-  const weeklyData = useMemo(() => {
-    const volumeByWeek: { [weekStart: string]: { [routine: string]: number, total: number } } = {};
-    
+  // Data for Stacked Bar Chart: Cycle Volume by Routine
+  const cycleData = useMemo(() => {
+    const recordsByDate: { [date: string]: any[] } = {};
     records.forEach(r => {
-      const date = parseISO(r.date);
-      const weekStartStr = format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-      
-      if (!volumeByWeek[weekStartStr]) {
-        volumeByWeek[weekStartStr] = { total: 0 };
-        routines.forEach(rt => volumeByWeek[weekStartStr][rt] = 0);
-      }
-      
-      const weightInKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
-      const volume = Math.round(weightInKg * r.reps * 10) / 10;
-      volumeByWeek[weekStartStr][r.routine] = (volumeByWeek[weekStartStr][r.routine] || 0) + volume;
-      volumeByWeek[weekStartStr].total += volume;
+      if (!recordsByDate[r.date]) recordsByDate[r.date] = [];
+      recordsByDate[r.date].push(r);
     });
 
-    return Object.entries(volumeByWeek)
-      .map(([week, data]) => ({ week: format(parseISO(week), 'MM/dd'), ...data, rawWeek: week }))
-      .sort((a, b) => new Date(a.rawWeek).getTime() - new Date(b.rawWeek).getTime());
+    const dates = Object.keys(recordsByDate).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    
+    const routineCounts: { [routine: string]: number } = {};
+    const cycleMap: { [cycleNum: number]: { [routine: string]: number, total: number } } = {};
+    
+    dates.forEach(date => {
+      const dayRecords = recordsByDate[date].filter(r => r.routine !== 'Extra');
+      if (dayRecords.length === 0) return;
+      
+      const dominantRoutine = dayRecords[0].routine;
+      
+      routineCounts[dominantRoutine] = (routineCounts[dominantRoutine] || 0) + 1;
+      const cycleNum = routineCounts[dominantRoutine];
+      
+      if (!cycleMap[cycleNum]) {
+        cycleMap[cycleNum] = { total: 0 };
+        routines.forEach(rt => {
+          if (rt !== 'Extra') cycleMap[cycleNum][rt] = 0;
+        });
+      }
+      
+      dayRecords.forEach(r => {
+        if (r.routine === dominantRoutine) {
+          const weightInKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
+          const volume = Math.round(weightInKg * r.reps * 10) / 10;
+          cycleMap[cycleNum][dominantRoutine] = (cycleMap[cycleNum][dominantRoutine] || 0) + volume;
+          cycleMap[cycleNum].total += volume;
+        }
+      });
+    });
+
+    return Object.entries(cycleMap)
+      .map(([cycleNum, data]) => ({ cycle: `Cycle ${cycleNum}`, cycleNum: parseInt(cycleNum), ...data }))
+      .sort((a, b) => a.cycleNum - b.cycleNum);
   }, [records, routines]);
 
   // Data for Progression Line Chart (Sets 1, 2, 3 Weight)
@@ -169,7 +189,7 @@ export default function Dashboard() {
               value={progressionRoutine}
               onChange={(e) => setProgressionRoutine(e.target.value)}
             >
-              {routines.map(rt => <option key={rt} value={rt}>{rt}</option>)}
+              {routines.filter(r => r !== 'Extra').map(rt => <option key={rt} value={rt}>{rt}</option>)}
             </select>
             <select 
               className="form-select" 
@@ -213,25 +233,25 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* WEEKLY VOLUME CHART (Kept as requested) */}
+      {/* CYCLE VOLUME CHART */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h3 style={{ marginBottom: '0.25rem', color: '#a0a0a0', fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Weekly Volume Total (kg)
+              Cycle Volume Total (kg)
             </h3>
             <p style={{ color: '#737373', fontSize: '0.75rem' }}>
-              メニューごとのトータルボリューム推移（参考）
+              4メニューを1周とするサイクルごとのボリューム比較
             </p>
           </div>
           <select 
             className="form-select" 
             style={{ width: 'auto', padding: '0.5rem', fontSize: '0.875rem' }}
-            value={weeklyFilter}
-            onChange={(e) => setWeeklyFilter(e.target.value)}
+            value={cycleFilter}
+            onChange={(e) => setCycleFilter(e.target.value)}
           >
             <option value="All">すべてのメニュー</option>
-            {routines.map(rt => (
+            {routines.filter(r => r !== 'Extra').map(rt => (
               <option key={rt} value={rt}>{rt}</option>
             ))}
           </select>
@@ -239,9 +259,9 @@ export default function Dashboard() {
 
         <div style={{ height: 350, width: '100%', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '0.25rem', padding: '1rem 1rem 1rem 0', border: '1px solid var(--border)' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyData}>
+            <BarChart data={cycleData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-              <XAxis dataKey="week" stroke="#737373" fontSize={12} tickMargin={10} />
+              <XAxis dataKey="cycle" stroke="#737373" fontSize={12} tickMargin={10} />
               <YAxis stroke="#737373" fontSize={12} tickMargin={10} width={60} />
               <Tooltip 
                 contentStyle={{ backgroundColor: '#121212', border: '1px solid #333', borderRadius: '0.25rem' }}
@@ -249,15 +269,15 @@ export default function Dashboard() {
                 cursor={{ fill: 'rgba(255,255,255,0.05)' }}
               />
               <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '10px' }} />
-              {weeklyFilter === "All" ? (
-                routines.map((rt, index) => (
+              {cycleFilter === "All" ? (
+                routines.filter(r => r !== 'Extra').map((rt, index) => (
                   <Bar key={rt} dataKey={rt} name={rt} stackId="a" fill={COLORS[index % COLORS.length]} />
                 ))
               ) : (
                 <Bar 
-                  dataKey={weeklyFilter} 
-                  name={weeklyFilter} 
-                  fill={COLORS[routines.indexOf(weeklyFilter) % COLORS.length] || COLORS[0]} 
+                  dataKey={cycleFilter} 
+                  name={cycleFilter} 
+                  fill={COLORS[routines.indexOf(cycleFilter) % COLORS.length] || COLORS[0]} 
                 />
               )}
             </BarChart>

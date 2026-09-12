@@ -148,7 +148,7 @@ export default function HistoryPage() {
                             )}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <span style={{ fontSize: '0.65rem', backgroundColor: '#333', padding: '0.1rem 0.4rem', borderRadius: '1rem', color: '#a0a0a0' }}>{routine}</span>
+                            <span style={{ fontSize: '0.65rem', backgroundColor: routine === 'Extra' ? 'rgba(255,255,255,0.1)' : '#333', padding: '0.1rem 0.4rem', borderRadius: '1rem', color: '#a0a0a0' }}>{routine}</span>
                             <div style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s', color: '#737373' }}>
                               ▼
                             </div>

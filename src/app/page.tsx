@@ -46,6 +46,8 @@ export default function Home() {
 
   const [pastRecords, setPastRecords] = useState<any[]>([]);
 
+  const [timerDuration, setTimerDuration] = useState(90);
+
   // Timer State
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -122,6 +124,19 @@ export default function Home() {
   useEffect(() => {
     if (!selectedRoutineName) {
       setRoutineExercises([]);
+      return;
+    }
+    
+    if (selectedRoutineName === 'Extra') {
+      setRoutineExercises([{
+        id: `ex-${Date.now()}`,
+        originalExercise: 'Custom Exercise',
+        currentExercise: 'Custom Exercise',
+        targetSets: 3,
+        targetReps: '-',
+        sets: Array(3).fill({ weight: "", reps: "" }),
+        memo: "",
+      }]);
       return;
     }
     
@@ -291,7 +306,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="routine-grid">
+        <div className="routine-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
           {uniqueRoutineNames.map(name => (
             <div 
               key={name}
@@ -302,10 +317,28 @@ export default function Home() {
               <span className="rt-name">{name}</span>
             </div>
           ))}
+          <div 
+            className={`routine-card ${selectedRoutineName === 'Extra' ? 'active' : ''}`}
+            onClick={() => setSelectedRoutineName('Extra')}
+            style={{ borderColor: selectedRoutineName === 'Extra' ? '#4a5568' : 'var(--border)' }}
+          >
+            <Dumbbell size={20} className="rt-icon" />
+            <span className="rt-name" style={{ color: selectedRoutineName === 'Extra' ? '#e2e8f0' : '#718096' }}>Extra</span>
+          </div>
         </div>
 
         {selectedRoutineName && routineExercises.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#a0a0a0', fontWeight: 600 }}>TIMER</span>
+              <select className="form-select" style={{ width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} value={timerDuration} onChange={(e) => setTimerDuration(Number(e.target.value))}>
+                <option value={60}>60s</option>
+                <option value={90}>90s</option>
+                <option value={120}>120s</option>
+                <option value={150}>150s</option>
+                <option value={180}>180s</option>
+              </select>
+            </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="button" onClick={() => setUnit("kg")} style={{ fontSize: '0.75rem', color: unit === 'kg' ? 'var(--primary)' : '#737373', fontWeight: unit === 'kg' ? 600 : 400 }}>KG</button>
               <span style={{ color: '#333' }}>|</span>
@@ -413,7 +446,7 @@ export default function Home() {
                       </div>
                       <button 
                         type="button" 
-                        onClick={() => startTimer(90)} 
+                        onClick={() => startTimer(timerDuration)} 
                         style={{ padding: '0.5rem', color: '#737373', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '0.25rem' }}
                         title="Start 90s Rest"
                       >
@@ -421,6 +454,12 @@ export default function Home() {
                       </button>
                     </div>
                   ))}
+                  {selectedRoutineName === 'Extra' && (
+                     <button type="button" onClick={() => {
+                        const newSets = [...ex.sets, {weight: "", reps: ""}];
+                        setRoutineExercises(prev => prev.map(p => p.id === ex.id ? {...p, sets: newSets} : p));
+                     }} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', width: 'fit-content', marginTop: '0.5rem' }}>+ Add Set</button>
+                  )}
                 </div>
 
                 {/* Memo */}
@@ -437,6 +476,22 @@ export default function Home() {
               </div>
             );
           })}
+          
+          {selectedRoutineName === 'Extra' && (
+            <button type="button" onClick={() => {
+              setRoutineExercises(prev => [...prev, {
+                id: `ex-${Date.now()}`,
+                originalExercise: 'Custom Exercise',
+                currentExercise: 'Custom Exercise',
+                targetSets: 3,
+                targetReps: '-',
+                sets: Array(3).fill({ weight: "", reps: "" }),
+                memo: "",
+              }]);
+            }} className="btn-secondary" style={{ width: '100%' }}>
+              + ADD EXERCISE
+            </button>
+          )}
         </div>
 
         {selectedRoutineName && routineExercises.length > 0 && (

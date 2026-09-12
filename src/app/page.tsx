@@ -24,6 +24,7 @@ type ExerciseFormState = {
   targetReps: string;
   sets: SetRecord[];
   memo: string;
+  unit: "kg" | "lbs";
 };
 
 export default function Home() {
@@ -39,7 +40,6 @@ export default function Home() {
   
   const [selectedRoutineName, setSelectedRoutineName] = useState<string>("");
   const [routineExercises, setRoutineExercises] = useState<ExerciseFormState[]>([]);
-  const [unit, setUnit] = useState<"kg" | "lbs">("kg");
   
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -136,6 +136,7 @@ export default function Home() {
         targetReps: '-',
         sets: Array(3).fill({ weight: "", reps: "" }),
         memo: "",
+        unit: "kg"
       }]);
       return;
     }
@@ -152,6 +153,7 @@ export default function Home() {
       targetReps: ex.targetReps,
       sets: Array(ex.targetSets || 3).fill({ weight: "", reps: "" }),
       memo: "",
+      unit: "kg"
     }));
     
     setRoutineExercises(initialFormState);
@@ -160,6 +162,12 @@ export default function Home() {
   const handleExerciseNameChange = (id: string, newName: string) => {
     setRoutineExercises(prev => 
       prev.map(ex => ex.id === id ? { ...ex, currentExercise: newName } : ex)
+    );
+  };
+
+  const handleUnitChange = (id: string, newUnit: "kg" | "lbs") => {
+    setRoutineExercises(prev => 
+      prev.map(ex => ex.id === id ? { ...ex, unit: newUnit } : ex)
     );
   };
 
@@ -233,7 +241,7 @@ export default function Home() {
             weight: parseFloat(set.weight),
             reps: parseInt(set.reps),
             memo: idx === 0 ? ex.memo : "",
-            unit: unit
+            unit: ex.unit
           });
         }
       });
@@ -327,8 +335,6 @@ export default function Home() {
           </div>
         </div>
 
-        {selectedRoutineName && routineExercises.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.75rem', color: '#a0a0a0', fontWeight: 600 }}>TIMER</span>
               <select className="form-select" style={{ width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} value={timerDuration} onChange={(e) => setTimerDuration(Number(e.target.value))}>
@@ -338,11 +344,6 @@ export default function Home() {
                 <option value={150}>150s</option>
                 <option value={180}>180s</option>
               </select>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setUnit("kg")} style={{ fontSize: '0.75rem', color: unit === 'kg' ? 'var(--primary)' : '#737373', fontWeight: unit === 'kg' ? 600 : 400 }}>KG</button>
-              <span style={{ color: '#333' }}>|</span>
-              <button type="button" onClick={() => setUnit("lbs")} style={{ fontSize: '0.75rem', color: unit === 'lbs' ? 'var(--primary)' : '#737373', fontWeight: unit === 'lbs' ? 600 : 400 }}>LBS</button>
             </div>
           </div>
         )}
@@ -357,9 +358,16 @@ export default function Home() {
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                     <div style={{ flex: 1 }}>
-                      <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--primary)', marginBottom: '0.25rem' }}>
-                        {index + 1}. EXERCISE
-                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--primary)', margin: 0 }}>
+                          {index + 1}. EXERCISE
+                        </label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button type="button" onClick={() => handleUnitChange(ex.id, "kg")} style={{ fontSize: '0.65rem', color: ex.unit === 'kg' ? 'var(--primary)' : '#737373', fontWeight: ex.unit === 'kg' ? 600 : 400 }}>KG</button>
+                          <span style={{ color: '#333', fontSize: '0.65rem' }}>|</span>
+                          <button type="button" onClick={() => handleUnitChange(ex.id, "lbs")} style={{ fontSize: '0.65rem', color: ex.unit === 'lbs' ? 'var(--primary)' : '#737373', fontWeight: ex.unit === 'lbs' ? 600 : 400 }}>LBS</button>
+                        </div>
+                      </div>
                       <input 
                         type="text" 
                         className="form-input" 
@@ -487,6 +495,7 @@ export default function Home() {
                 targetReps: '-',
                 sets: Array(3).fill({ weight: "", reps: "" }),
                 memo: "",
+                unit: "kg"
               }]);
             }} className="btn-secondary" style={{ width: '100%' }}>
               + ADD EXERCISE

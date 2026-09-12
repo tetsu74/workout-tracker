@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { PlusCircle, Loader2, Info } from "lucide-react";
+import { PlusCircle, Loader2, Info, Copy, Dumbbell, Timer, X, Play, Square } from "lucide-react";
 
 type RoutineMaster = {
   routine: string;
@@ -46,6 +46,39 @@ export default function Home() {
 
   const [pastRecords, setPastRecords] = useState<any[]>([]);
 
+  // Timer State
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [showTimer, setShowTimer] = useState(false);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isTimerRunning && timerSeconds > 0) {
+      interval = setInterval(() => {
+        setTimerSeconds(prev => prev - 1);
+      }, 1000);
+    } else if (timerSeconds === 0 && isTimerRunning) {
+      setIsTimerRunning(false);
+      // Optional: Play a sound or vibrate here
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+      }
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timerSeconds]);
+
+  const startTimer = (seconds: number) => {
+    setTimerSeconds(seconds);
+    setIsTimerRunning(true);
+    setShowTimer(true);
+  };
+
+  const formatTimer = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
   // Fetch routines and past records on mount
   useEffect(() => {
     async function fetchData() {
@@ -74,8 +107,15 @@ export default function Home() {
   }, []);
 
   const uniqueRoutineNames = useMemo(() => {
-    const names = routinesMaster.map(r => r.routine);
-    return Array.from(new Set(names));
+    // Force specific order if they exist, otherwise just use what's there
+    const order = ['Push 1', 'Pull 1', 'Push 2', 'Pull 2'];
+    const names = Array.from(new Set(routinesMaster.map(r => r.routine)));
+    return names.sort((a, b) => {
+      const idxA = order.indexOf(a);
+      const idxB = order.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      return 0;
+    });
   }, [routinesMaster]);
 
   // When a routine is selected, populate the form state
@@ -92,7 +132,7 @@ export default function Home() {
     const initialFormState: ExerciseFormState[] = exercisesForRoutine.map((ex, idx) => ({
       id: `ex-${idx}`,
       originalExercise: ex.exercise,
-      currentExercise: ex.exercise, // Editable
+      currentExercise: ex.exercise,
       targetSets: ex.targetSets || 3,
       targetReps: ex.targetReps,
       sets: Array(ex.targetSets || 3).fill({ weight: "", reps: "" }),
@@ -135,10 +175,24 @@ export default function Home() {
     return exerciseRecords.filter(r => r.date === lastDate).sort((a, b) => a.set - b.set);
   };
 
+  // Copy Previous Records into current sets
+  const handleCopyPrevious = (exId: string, pastPerf: any[]) => {
+    setRoutineExercises(prev => 
+      prev.map(ex => {
+        if (ex.id !== exId) return ex;
+        const newSets = [...ex.sets];
+        pastPerf.forEach((p, idx) => {
+          if (idx < newSets.length) {
+            newSets[idx] = { weight: p.weight.toString(), reps: p.reps.toString() };
+          }
+        });
+        return { ...ex, sets: newSets, memo: pastPerf[0]?.memo || "" };
+      })
+    );
+  };
+
   const isFormValid = useMemo(() => {
     if (!selectedRoutineName || routineExercises.length === 0) return false;
-    // Check if at least one exercise has valid sets (weight & reps) to be saved
-    // Or maybe require all shown fields? Let's just say at least one set must be filled.
     const hasAnySet = routineExercises.some(ex => 
       ex.sets.some(s => s.weight !== "" && s.reps !== "")
     );
@@ -188,7 +242,6 @@ export default function Home() {
         setPastRecords(newRecordsData.records);
       }
       
-      // Clear form smoothly by re-selecting the routine
       setSelectedRoutineName("");
       setTimeout(() => setSelectedRoutineName(selectedRoutineName), 100);
       
@@ -207,13 +260,13 @@ export default function Home() {
   return (
     <div>
       <div className="header" style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 300, letterSpacing: '0.05em' }}>NEW RECORD</h2>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 300, letterSpacing: '0.05em' }}>WORKOUT SESSION</h2>
       </div>
 
       {message && (
         <div style={{
           padding: '1rem',
-          borderRadius: '0.25rem',
+          borderRadius: '0.5rem',
           marginBottom: '1.5rem',
           backgroundColor: message.type === 'success' ? 'rgba(107, 142, 35, 0.1)' : 'rgba(178, 34, 34, 0.1)',
           color: message.type === 'success' ? 'var(--success)' : 'var(--danger)',
@@ -225,7 +278,7 @@ export default function Home() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+        <div className="form-group" style={{ marginBottom: '2rem' }}>
           <label className="form-label" htmlFor="date">Date</label>
           <input
             type="date"
@@ -234,22 +287,21 @@ export default function Home() {
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
+            style={{ fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.05em', textAlign: 'center' }}
           />
         </div>
 
-        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-          <label className="form-label" htmlFor="routine">Routine</label>
-          <select
-            id="routine"
-            className="form-select"
-            value={selectedRoutineName}
-            onChange={(e) => setSelectedRoutineName(e.target.value)}
-          >
-            <option value="">Select Routine...</option>
-            {uniqueRoutineNames.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+        <div className="routine-grid">
+          {uniqueRoutineNames.map(name => (
+            <div 
+              key={name}
+              className={`routine-card ${selectedRoutineName === name ? 'active' : ''}`}
+              onClick={() => setSelectedRoutineName(name)}
+            >
+              <Dumbbell size={20} className="rt-icon" />
+              <span className="rt-name">{name}</span>
+            </div>
+          ))}
         </div>
 
         {selectedRoutineName && routineExercises.length > 0 && (
@@ -267,30 +319,24 @@ export default function Home() {
             const pastPerf = getPastPerformance(ex.originalExercise);
             
             return (
-              <div key={ex.id} style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                borderRadius: '0.5rem',
-                padding: '1.25rem',
-              }}>
+              <div key={ex.id} className="glass-card">
                 {/* Exercise Header */}
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                     <div style={{ flex: 1 }}>
-                      <label className="form-label" style={{ fontSize: '0.75rem', color: '#a3a3a3', marginBottom: '0.25rem' }}>Exercise {index + 1}</label>
+                      <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--primary)', marginBottom: '0.25rem' }}>
+                        {index + 1}. EXERCISE
+                      </label>
                       <input 
                         type="text" 
                         className="form-input" 
                         value={ex.currentExercise}
                         onChange={(e) => handleExerciseNameChange(ex.id, e.target.value)}
-                        style={{ fontSize: '1.1rem', fontWeight: 600, padding: '0.5rem', backgroundColor: 'transparent', border: '1px dashed rgba(255,255,255,0.2)' }}
+                        style={{ fontSize: '1.1rem', fontWeight: 600, padding: '0.5rem', backgroundColor: 'transparent', border: '1px dashed rgba(255,255,255,0.1)' }}
                       />
                     </div>
                     <div style={{ textAlign: 'right', marginLeft: '1rem' }}>
-                      <span style={{ display: 'inline-block', backgroundColor: 'var(--primary)', color: '#000', fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>
-                        TARGET
-                      </span>
-                      <div style={{ fontSize: '0.85rem', color: '#d4d4d4', marginTop: '0.25rem' }}>
+                      <div style={{ fontSize: '0.85rem', color: '#d4d4d4', marginTop: '1.5rem' }}>
                         {ex.targetSets} Sets × {ex.targetReps}
                       </div>
                     </div>
@@ -299,28 +345,40 @@ export default function Home() {
 
                 {/* Past Performance */}
                 <div style={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                  borderRadius: '0.25rem',
+                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  borderRadius: '0.5rem',
                   padding: '0.75rem',
-                  marginBottom: '1rem',
+                  marginBottom: '1.25rem',
                   fontSize: '0.8125rem'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#737373' }}>
-                    <Info size={14} />
-                    <span style={{ fontWeight: 500, letterSpacing: '0.02em' }}>PREVIOUS PERFORMANCE</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#a0a0a0' }}>
+                      <Info size={14} />
+                      <span style={{ fontWeight: 600, letterSpacing: '0.05em' }}>PREVIOUS</span>
+                    </div>
+                    {pastPerf && (
+                      <button 
+                        type="button" 
+                        onClick={() => handleCopyPrevious(ex.id, pastPerf)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}
+                      >
+                        <Copy size={12} /> COPY
+                      </button>
+                    )}
                   </div>
+                  
                   {pastPerf ? (
                     <div>
-                      <div style={{ marginBottom: '0.25rem', color: '#a3a3a3' }}>{pastPerf[0].date}</div>
+                      <div style={{ marginBottom: '0.25rem', color: '#737373', fontSize: '0.7rem' }}>{pastPerf[0].date}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                         {pastPerf.map((r: any, i: number) => (
-                          <span key={i} style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span key={i} style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>
                             {r.weight}{r.unit || "kg"} × {r.reps}
                           </span>
                         ))}
                       </div>
                       {pastPerf[0].memo && (
-                        <div style={{ marginTop: '0.4rem', color: '#888', fontSize: '0.75rem' }}>
+                        <div style={{ marginTop: '0.5rem', color: '#888', fontSize: '0.75rem' }}>
                           Memo: {pastPerf[0].memo}
                         </div>
                       )}
@@ -331,27 +389,36 @@ export default function Home() {
                 </div>
 
                 {/* Sets Inputs */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
                   {ex.sets.map((s, idx) => (
                     <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <span style={{ width: '30px', fontSize: '0.75rem', color: '#737373' }}>#{idx + 1}</span>
-                      <input
-                        type="number"
-                        className="form-input"
-                        style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.03)' }}
-                        placeholder="Weight"
-                        step="0.5"
-                        value={s.weight}
-                        onChange={(e) => handleSetChange(ex.id, idx, 'weight', e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className="form-input"
-                        style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.03)' }}
-                        placeholder="Reps"
-                        value={s.reps}
-                        onChange={(e) => handleSetChange(ex.id, idx, 'reps', e.target.value)}
-                      />
+                      <span style={{ width: '40px', fontSize: '0.75rem', color: '#737373', fontWeight: 600 }}>Set {idx + 1}</span>
+                      <div style={{ display: 'flex', flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <input
+                          type="number"
+                          style={{ flex: 1, backgroundColor: 'transparent', border: 'none', padding: '0.75rem', color: 'var(--foreground)', fontSize: '1rem', textAlign: 'center', outline: 'none' }}
+                          placeholder="Weight"
+                          step="0.5"
+                          value={s.weight}
+                          onChange={(e) => handleSetChange(ex.id, idx, 'weight', e.target.value)}
+                        />
+                        <div style={{ width: '1px', backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                        <input
+                          type="number"
+                          style={{ flex: 1, backgroundColor: 'transparent', border: 'none', padding: '0.75rem', color: 'var(--foreground)', fontSize: '1rem', textAlign: 'center', outline: 'none' }}
+                          placeholder="Reps"
+                          value={s.reps}
+                          onChange={(e) => handleSetChange(ex.id, idx, 'reps', e.target.value)}
+                        />
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => startTimer(90)} 
+                        style={{ padding: '0.5rem', color: '#737373', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '0.25rem' }}
+                        title="Start 90s Rest"
+                      >
+                        <Timer size={16} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -361,10 +428,10 @@ export default function Home() {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Memo (optional)"
+                    placeholder="Notes (optional)..."
                     value={ex.memo}
                     onChange={(e) => handleMemoChange(ex.id, e.target.value)}
-                    style={{ fontSize: '0.85rem', backgroundColor: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem 0' }}
+                    style={{ fontSize: '0.85rem', backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.75rem' }}
                   />
                 </div>
               </div>
@@ -378,22 +445,69 @@ export default function Home() {
             className="btn-primary" 
             disabled={!isFormValid || isLoading} 
             style={{ 
-              opacity: (!isFormValid || isLoading) ? 0.5 : 1,
-              cursor: (!isFormValid || isLoading) ? 'not-allowed' : 'pointer',
               width: '100%',
-              padding: '1rem',
-              fontSize: '1rem'
+              padding: '1.25rem',
+              fontSize: '1.1rem',
+              marginTop: '1rem'
             }}
           >
             {isLoading ? <Loader2 className="animate-spin" style={{ margin: '0 auto' }} /> : (
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                <PlusCircle size={20} />
-                Save {selectedRoutineName} Routine
+                <Play size={20} fill="currentColor" />
+                COMPLETE SESSION
               </span>
             )}
           </button>
         )}
       </form>
+
+      {/* Floating Rest Timer */}
+      {showTimer && (
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(18, 18, 18, 0.9)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          border: '1px solid var(--primary)',
+          borderRadius: '2rem',
+          padding: '0.5rem 1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.8), 0 0 15px var(--primary-glow)',
+          zIndex: 100,
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <Timer size={18} color="var(--primary)" />
+          <span style={{ fontSize: '1.25rem', fontWeight: 600, color: timerSeconds === 0 ? 'var(--success)' : 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
+            {formatTimer(timerSeconds)}
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '0.5rem' }}>
+            {isTimerRunning ? (
+              <button onClick={() => setIsTimerRunning(false)} style={{ color: '#e5e5e5', padding: '0.25rem' }}>
+                <Square size={16} fill="currentColor" />
+              </button>
+            ) : (
+              <button onClick={() => setIsTimerRunning(true)} style={{ color: '#e5e5e5', padding: '0.25rem' }} disabled={timerSeconds === 0}>
+                <Play size={16} fill="currentColor" />
+              </button>
+            )}
+            <button onClick={() => setShowTimer(false)} style={{ color: '#737373', padding: '0.25rem' }}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @keyframes slideUp {
+          from { transform: translate(-50%, 100%); opacity: 0; }
+          to { transform: translate(-50%, 0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

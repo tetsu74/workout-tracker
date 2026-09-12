@@ -29,6 +29,22 @@ const DEFAULT_ROUTINES = [
   { Routine: 'Pull 2', Exercise: 'ハンマーカール', TargetSets: 3 },
 ];
 
+export async function DELETE() {
+  try {
+    const doc = await getGoogleSheet();
+    let sheet = doc.sheetsByTitle['Records_v2'];
+    
+    if (!sheet) {
+      return NextResponse.json({ error: 'Records_v2 sheet not found' }, { status: 500 });
+    }
+
+    await sheet.clearRows();
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function POST() {
   try {
     const doc = await getGoogleSheet();

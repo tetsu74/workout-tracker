@@ -152,23 +152,42 @@ export default function Dashboard() {
     <div>
       <div className="header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 300, letterSpacing: '0.05em', margin: 0 }}>SUMMARY DASHBOARD</h2>
-        <button 
-          onClick={async () => {
-            if (!confirm('Are you sure? This will delete all current records and insert 8 weeks of dummy data.')) return;
-            setIsLoading(true);
-            try {
-              const res = await fetch('/api/seed', { method: 'POST' });
-              if (res.ok) window.location.reload();
-              else alert('Failed to seed');
-            } catch (e) {
-              alert('Error seeding');
-            }
-          }}
-          className="btn-secondary" 
-          style={{ padding: '0.5rem', fontSize: '0.75rem', borderColor: 'var(--danger)', color: 'var(--danger)' }}
-        >
-          Inject Dummy Data
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            onClick={async () => {
+              if (!confirm('Are you sure? This will delete ALL records in the database.')) return;
+              setIsLoading(true);
+              try {
+                const res = await fetch('/api/seed', { method: 'DELETE' });
+                if (res.ok) window.location.reload();
+                else alert('Failed to clear');
+              } catch (e) {
+                alert('Error clearing');
+              }
+            }}
+            className="btn-secondary" 
+            style={{ padding: '0.5rem', fontSize: '0.75rem', borderColor: '#737373', color: '#737373' }}
+          >
+            Clear All Data
+          </button>
+          <button 
+            onClick={async () => {
+              if (!confirm('Are you sure? This will delete all current records and insert 8 weeks of dummy data.')) return;
+              setIsLoading(true);
+              try {
+                const res = await fetch('/api/seed', { method: 'POST' });
+                if (res.ok) window.location.reload();
+                else alert('Failed to seed');
+              } catch (e) {
+                alert('Error seeding');
+              }
+            }}
+            className="btn-secondary" 
+            style={{ padding: '0.5rem', fontSize: '0.75rem', borderColor: 'var(--danger)', color: 'var(--danger)' }}
+          >
+            Inject Dummy Data
+          </button>
+        </div>
       </div>
 
       {/* PROGRESSION CHART */}

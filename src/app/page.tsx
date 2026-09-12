@@ -335,6 +335,8 @@ export default function Home() {
           </div>
         </div>
 
+        {selectedRoutineName && routineExercises.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.75rem', color: '#a0a0a0', fontWeight: 600 }}>TIMER</span>
               <select className="form-select" style={{ width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} value={timerDuration} onChange={(e) => setTimerDuration(Number(e.target.value))}>

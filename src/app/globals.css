@@ -281,19 +281,29 @@ button {
   background-color: var(--calendar-hover) !important;
   border-radius: 0.25rem;
 }
+.react-calendar__month-view__days__day {
+  padding: 0.4rem 0.15rem !important;
+  min-height: 3.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
 .react-calendar__month-view__days__day:hover {
   background-color: var(--calendar-hover) !important;
   border-radius: 0.25rem;
 }
 .react-calendar__tile--active {
-  background: var(--primary) !important;
-  color: #121212 !important;
+  background: rgba(203, 162, 88, 0.2) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--primary) !important;
   border-radius: 0.25rem;
+  box-shadow: 0 0 10px var(--primary-glow);
 }
 .react-calendar__tile--now {
-  background: rgba(203, 162, 88, 0.1) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
   border-radius: 0.25rem;
-  border: 1px solid var(--primary) !important;
+  border: 1px dashed rgba(203, 162, 88, 0.5) !important;
 }
 
 /* Custom modal */

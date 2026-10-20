@@ -36,21 +36,61 @@ export default function CalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  useEffect(() => {
-    async function fetchRecords() {
-      try {
-        const res = await fetch('/api/records');
-        if (!res.ok) throw new Error("Failed to fetch records");
-        const data = await res.json();
-        setRecords(data.records || []);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editExercise, setEditExercise] = useState("");
+  const [editSubstitute, setEditSubstitute] = useState(false);
+  const [editOriginal, setEditOriginal] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const fetchRecords = async () => {
+    try {
+      const res = await fetch('/api/records');
+      if (!res.ok) throw new Error("Failed to fetch records");
+      const data = await res.json();
+      setRecords(data.records || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchRecords();
   }, []);
+
+  const startEdit = (date: string, routine: string, exercise: string, substitute?: boolean, originalExercise?: string) => {
+    setEditingKey(`${date}||${routine}||${exercise}`);
+    setEditExercise(exercise);
+    setEditSubstitute(Boolean(substitute));
+    setEditOriginal(originalExercise || exercise);
+  };
+
+  const handleSaveEdit = async (date: string, routine: string, currentExercise: string) => {
+    if (!editExercise.trim()) return;
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch('/api/records', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          routine,
+          currentExercise,
+          newExercise: editExercise.trim(),
+          substitute: editSubstitute,
+          originalExercise: editSubstitute ? (editOriginal.trim() || currentExercise) : ''
+        })
+      });
+      if (!res.ok) throw new Error("Failed to update record");
+      setEditingKey(null);
+      await fetchRecords();
+    } catch (e: any) {
+      alert(e.message || 'Failed to update');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const routinesByDate = useMemo(() => {
     const map: { [date: string]: string[] } = {};
@@ -184,20 +224,84 @@ export default function CalendarPage() {
               const sets = selectedDayRecords.filter(r => r.exercise === exercise).sort((a, b) => a.set - b.set);
               const routine = sets[0].routine;
               const st = getRoutineStyle(routine);
+              const first = sets[0] as any;
+              const key = `${first.date}||${routine}||${exercise}`;
+              const isEditing = editingKey === key;
               
               return (
                 <div key={exercise} style={{ backgroundColor: 'var(--input-bg)', padding: '1rem', borderRadius: '0.25rem', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
                     <h4 style={{ fontWeight: 600 }}>
                       {exercise}
-                      {(sets[0] as any).substitute && (
+                      {first.substitute && (
                         <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: '#f59e0b', border: '1px solid #d97706', padding: '0 0.35rem', borderRadius: '1rem', fontWeight: 400 }}>
-                          代替（元: {(sets[0] as any).originalExercise}）
+                          代替（元: {first.originalExercise}）
                         </span>
                       )}
                     </h4>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, backgroundColor: st.bg, border: `1px solid ${st.border}`, padding: '0.1rem 0.5rem', borderRadius: '1rem', color: st.color, whiteSpace: 'nowrap' }}>{routine}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {!isEditing && (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(first.date, routine, exercise, first.substitute, first.originalExercise)}
+                          style={{ fontSize: '0.65rem', color: '#a0a0a0', border: '1px solid #444', padding: '0.1rem 0.45rem', borderRadius: '0.25rem' }}
+                        >
+                          編集
+                        </button>
+                      )}
+                      <span style={{ fontSize: '0.7rem', fontWeight: 600, backgroundColor: st.bg, border: `1px solid ${st.border}`, padding: '0.1rem 0.5rem', borderRadius: '1rem', color: st.color, whiteSpace: 'nowrap' }}>{routine}</span>
+                    </div>
                   </div>
+
+                  {isEditing && (
+                    <div style={{ backgroundColor: 'rgba(0,0,0,0.35)', padding: '0.75rem', borderRadius: '0.35rem', marginBottom: '0.75rem', border: '1px solid #444', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: editSubstitute ? '#f59e0b' : '#d4d4d4', fontWeight: 600, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editSubstitute}
+                          onChange={(e) => setEditSubstitute(e.target.checked)}
+                          style={{ accentColor: '#d97706' }}
+                        />
+                        代替メニューとして記録（Summaryでは元メニューの前回値を引継ぎ）
+                      </label>
+                      {editSubstitute && (
+                        <div>
+                          <label style={{ fontSize: '0.7rem', color: '#a0a0a0', display: 'block', marginBottom: '0.2rem' }}>元メニュー名</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={editOriginal}
+                            onChange={(e) => setEditOriginal(e.target.value)}
+                            style={{ fontSize: '0.85rem', padding: '0.4rem 0.6rem' }}
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label style={{ fontSize: '0.7rem', color: '#a0a0a0', display: 'block', marginBottom: '0.2rem' }}>実施メニュー名</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={editExercise}
+                          onChange={(e) => setEditExercise(e.target.value)}
+                          style={{ fontSize: '0.85rem', padding: '0.4rem 0.6rem' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+                        <button type="button" onClick={() => setEditingKey(null)} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>
+                          キャンセル
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSavingEdit}
+                          onClick={() => handleSaveEdit(first.date, routine, exercise)}
+                          style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', backgroundColor: 'var(--primary)', color: '#121212', fontWeight: 600, borderRadius: '0.35rem' }}
+                        >
+                          {isSavingEdit ? '保存中...' : '保存'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ color: '#737373', borderBottom: '1px solid #333' }}>

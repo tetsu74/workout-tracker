@@ -18,7 +18,10 @@ export async function GET() {
       weight: parseFloat(row.get('Weight')),
       reps: parseInt(row.get('Reps')),
       memo: row.get('Memo') || "",
-      unit: row.get('Unit') || "kg"
+      unit: row.get('Unit') || "kg",
+      // Substitute = irregular alternative exercise performed instead of the routine's exercise
+      substitute: String(row.get('Substitute') || '').toUpperCase() === 'TRUE',
+      originalExercise: row.get('OriginalExercise') || ""
     }));
 
     return NextResponse.json({ records });
@@ -48,7 +51,9 @@ export async function POST(req: NextRequest) {
       Weight: record.weight,
       Reps: record.reps,
       Memo: record.memo || "",
-      Unit: record.unit || "kg"
+      Unit: record.unit || "kg",
+      Substitute: record.substitute ? "TRUE" : "",
+      OriginalExercise: record.substitute ? (record.originalExercise || "") : ""
     }));
 
     await sheet.addRows(rowsToAdd);

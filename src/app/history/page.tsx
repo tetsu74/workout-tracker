@@ -140,7 +140,14 @@ export default function HistoryPage() {
                           className="history-item-header"
                         >
                           <div>
-                            <div style={{ fontWeight: 600, color: '#e5e5e5', fontSize: '0.9rem' }}>{exName}</div>
+                            <div style={{ fontWeight: 600, color: '#e5e5e5', fontSize: '0.9rem' }}>
+                              {exName}
+                              {(exerciseRecords[0] as any).substitute && (
+                                <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: '#f59e0b', border: '1px solid #d97706', padding: '0 0.35rem', borderRadius: '1rem' }}>
+                                  代替（元: {(exerciseRecords[0] as any).originalExercise}）
+                                </span>
+                              )}
+                            </div>
                             {!isExpanded && (
                               <div style={{ fontSize: '0.75rem', color: '#737373', marginTop: '0.2rem' }}>
                                 {exerciseRecords.length} sets • {summary}

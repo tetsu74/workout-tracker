@@ -13,6 +13,9 @@ type Record = {
   weight: number;
   reps: number;
   unit?: string;
+  substitute?: boolean;
+  originalExercise?: string;
+  carried?: boolean; // true = value carried over from previous session (substituted day)
 };
 
 const COLORS = ['#cba258', '#8b7355', '#6b8e23', '#b22222', '#4682b4', '#9370db', '#20b2aa'];
@@ -44,21 +47,60 @@ export default function Dashboard() {
     fetchRecords();
   }, []);
 
-  const routines = useMemo(() => {
-    return Array.from(new Set(records.map(r => r.routine))).filter(Boolean);
+  // Normalize records for reporting:
+  // - Substitute (irregular) records are NOT counted as-is.
+  // - Instead, the original exercise inherits its previous session's values on that date.
+  const effectiveRecords = useMemo(() => {
+    const sorted = [...records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const dates = Array.from(new Set(sorted.map(r => r.date)));
+    const lastByKey: { [key: string]: Record[] } = {};
+    const result: Record[] = [];
+
+    dates.forEach(date => {
+      const dayRecords = sorted.filter(r => r.date === date);
+
+      // Regular records first (update "last" values)
+      const regular = dayRecords.filter(r => !r.substitute);
+      const regularGroups: { [key: string]: Record[] } = {};
+      regular.forEach(r => {
+        const key = `${r.routine}||${r.exercise}`;
+        (regularGroups[key] ||= []).push(r);
+        result.push(r);
+      });
+      Object.entries(regularGroups).forEach(([key, recs]) => { lastByKey[key] = recs; });
+
+      // Substituted exercises: carry over previous values of the original exercise
+      const subKeys = new Set(
+        dayRecords
+          .filter(r => r.substitute && r.originalExercise)
+          .map(r => `${r.routine}||${r.originalExercise}`)
+      );
+      subKeys.forEach(key => {
+        if (regularGroups[key]) return; // original also done that day; nothing to carry
+        const prev = lastByKey[key];
+        if (!prev) return; // no previous record -> nothing to inherit
+        prev.forEach(p => result.push({ ...p, date, substitute: false, carried: true }));
+      });
+    });
+
+    return result;
   }, [records]);
+
+  const routines = useMemo(() => {
+    return Array.from(new Set(effectiveRecords.map(r => r.routine))).filter(Boolean);
+  }, [effectiveRecords]);
 
   // Set default progression filters when routines load
   useEffect(() => {
     if (routines.length > 0 && !progressionRoutine) {
-      setProgressionRoutine(routines[0]);
+      setProgressionRoutine(routines.find(r => r !== 'Extra') || routines[0]);
     }
   }, [routines, progressionRoutine]);
 
   const exercisesForRoutine = useMemo(() => {
     if (!progressionRoutine) return [];
-    return Array.from(new Set(records.filter(r => r.routine === progressionRoutine).map(r => r.exercise)));
-  }, [records, progressionRoutine]);
+    return Array.from(new Set(effectiveRecords.filter(r => r.routine === progressionRoutine).map(r => r.exercise)));
+  }, [effectiveRecords, progressionRoutine]);
 
   useEffect(() => {
     if (exercisesForRoutine.length > 0 && (!progressionExercise || !exercisesForRoutine.includes(progressionExercise))) {
@@ -69,7 +111,7 @@ export default function Dashboard() {
   // Data for Stacked Bar Chart: Cycle Volume by Routine
   const cycleData = useMemo(() => {
     const recordsByDate: { [date: string]: any[] } = {};
-    records.forEach(r => {
+    effectiveRecords.forEach(r => {
       if (!recordsByDate[r.date]) recordsByDate[r.date] = [];
       recordsByDate[r.date].push(r);
     });
@@ -108,18 +150,23 @@ export default function Dashboard() {
     return Object.entries(cycleMap)
       .map(([cycleNum, data]) => ({ cycle: `Cycle ${cycleNum}`, cycleNum: parseInt(cycleNum), ...data }))
       .sort((a, b) => a.cycleNum - b.cycleNum);
-  }, [records, routines]);
+  }, [effectiveRecords, routines]);
 
   // Data for Progression Line Chart (Sets 1, 2, 3 Weight)
   const progressionData = useMemo(() => {
     if (!progressionExercise) return [];
     
-    const exerciseRecords = records.filter(r => r.routine === progressionRoutine && r.exercise === progressionExercise);
+    const exerciseRecords = effectiveRecords.filter(r => r.routine === progressionRoutine && r.exercise === progressionExercise);
     
     const groupedByDate: { [date: string]: any } = {};
     exerciseRecords.forEach(r => {
       if (!groupedByDate[r.date]) {
-        groupedByDate[r.date] = { date: r.date, formattedDate: format(parseISO(r.date), 'MM/dd'), totalVolume: 0 };
+        groupedByDate[r.date] = {
+          date: r.date,
+          // "*" marks a substituted day (values inherited from the previous session)
+          formattedDate: format(parseISO(r.date), 'MM/dd') + (r.carried ? '*' : ''),
+          totalVolume: 0
+        };
       }
       if (r.set <= 3) {
         groupedByDate[r.date][`set${r.set}`] = r.weight; // Show raw weight (kg/lbs)
@@ -130,7 +177,7 @@ export default function Dashboard() {
     });
 
     return Object.values(groupedByDate).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [records, progressionRoutine, progressionExercise]);
+  }, [effectiveRecords, progressionRoutine, progressionExercise]);
 
   if (isLoading) {
     return (
@@ -150,44 +197,8 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="header" style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 300, letterSpacing: '0.05em', margin: 0 }}>SUMMARY DASHBOARD</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button 
-            onClick={async () => {
-              if (!confirm('Are you sure? This will delete ALL records in the database.')) return;
-              setIsLoading(true);
-              try {
-                const res = await fetch('/api/seed', { method: 'DELETE' });
-                if (res.ok) window.location.reload();
-                else alert('Failed to clear');
-              } catch (e) {
-                alert('Error clearing');
-              }
-            }}
-            className="btn-secondary" 
-            style={{ padding: '0.5rem', fontSize: '0.75rem', borderColor: '#737373', color: '#737373' }}
-          >
-            Clear All Data
-          </button>
-          <button 
-            onClick={async () => {
-              if (!confirm('Are you sure? This will delete all current records and insert 8 weeks of dummy data.')) return;
-              setIsLoading(true);
-              try {
-                const res = await fetch('/api/seed', { method: 'POST' });
-                if (res.ok) window.location.reload();
-                else alert('Failed to seed');
-              } catch (e) {
-                alert('Error seeding');
-              }
-            }}
-            className="btn-secondary" 
-            style={{ padding: '0.5rem', fontSize: '0.75rem', borderColor: 'var(--danger)', color: 'var(--danger)' }}
-          >
-            Inject Dummy Data
-          </button>
-        </div>
       </div>
 
       {/* PROGRESSION CHART */}
@@ -198,7 +209,7 @@ export default function Dashboard() {
               Weight Progression by Set
             </h3>
             <p style={{ color: '#737373', fontSize: '0.75rem' }}>
-              種目ごとのセット別（1〜3セット目）重量推移
+              種目ごとのセット別（1〜3セット目）重量推移（* = 代替実施日：前回値を引継ぎ）
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

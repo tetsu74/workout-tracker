@@ -25,18 +25,34 @@ type ExerciseFormState = {
   sets: SetRecord[];
   memo: string;
   unit: "kg" | "lbs";
+  substitute: boolean; // irregular: performed a different exercise instead of the routine's one
 };
+
+const DRAFT_KEY = 'workoutDraft_v1';
+
+const todayJST = () => {
+  const now = new Date();
+  const jstOffset = 9 * 60 * 60 * 1000;
+  return new Date(now.getTime() + jstOffset).toISOString().split('T')[0];
+};
+
+const newCustomExercise = (): ExerciseFormState => ({
+  id: `ex-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  originalExercise: 'Custom Exercise',
+  currentExercise: 'Custom Exercise',
+  targetSets: 3,
+  targetReps: '-',
+  sets: Array(3).fill({ weight: "", reps: "" }),
+  memo: "",
+  unit: "kg",
+  substitute: false
+});
 
 export default function Home() {
   const [routinesMaster, setRoutinesMaster] = useState<RoutineMaster[]>([]);
   const [isLoadingRoutines, setIsLoadingRoutines] = useState(true);
   
-  const [date, setDate] = useState(() => {
-    const now = new Date();
-    const jstOffset = 9 * 60 * 60 * 1000;
-    const jstDate = new Date(now.getTime() + jstOffset);
-    return jstDate.toISOString().split('T')[0];
-  });
+  const [date, setDate] = useState(todayJST);
   
   const [selectedRoutineName, setSelectedRoutineName] = useState<string>("");
   const [routineExercises, setRoutineExercises] = useState<ExerciseFormState[]>([]);
@@ -120,44 +136,82 @@ export default function Home() {
     });
   }, [routinesMaster]);
 
-  // When a routine is selected, populate the form state
-  useEffect(() => {
-    if (!selectedRoutineName) {
-      setRoutineExercises([]);
-      return;
-    }
-    
-    if (selectedRoutineName === 'Extra') {
-      setRoutineExercises([{
-        id: `ex-${Date.now()}`,
-        originalExercise: 'Custom Exercise',
-        currentExercise: 'Custom Exercise',
-        targetSets: 3,
-        targetReps: '-',
-        sets: Array(3).fill({ weight: "", reps: "" }),
+  // Build a blank form for a routine
+  const buildExercises = (routineName: string): ExerciseFormState[] => {
+    if (!routineName) return [];
+    if (routineName === 'Extra') return [newCustomExercise()];
+    return routinesMaster
+      .filter(r => r.routine === routineName)
+      .sort((a, b) => a.order - b.order)
+      .map((ex, idx) => ({
+        id: `ex-${idx}`,
+        originalExercise: ex.exercise,
+        currentExercise: ex.exercise,
+        targetSets: ex.targetSets || 3,
+        targetReps: ex.targetReps,
+        sets: Array(ex.targetSets || 3).fill({ weight: "", reps: "" }),
         memo: "",
-        unit: "kg"
-      }]);
-      return;
+        unit: "kg",
+        substitute: false
+      }));
+  };
+
+  const hasAnyInput = (exs: ExerciseFormState[]) =>
+    exs.some(ex => ex.memo !== "" || ex.substitute || ex.sets.some(s => s.weight !== "" || s.reps !== ""));
+
+  // When a routine card is tapped, populate the form (confirm before discarding input)
+  const selectRoutine = (name: string) => {
+    if (name === selectedRoutineName) return;
+    if (hasAnyInput(routineExercises) && !confirm('入力中の内容が破棄されます。ルーティンを切り替えますか？')) return;
+    setSelectedRoutineName(name);
+    setRoutineExercises(buildExercises(name));
+  };
+
+  // ---- Draft persistence (keep input while navigating to other pages) ----
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.date) setDate(draft.date);
+        if (draft.selectedRoutineName) setSelectedRoutineName(draft.selectedRoutineName);
+        if (Array.isArray(draft.routineExercises)) {
+          setRoutineExercises(draft.routineExercises.map((ex: any) => ({ substitute: false, ...ex })));
+        }
+        if (draft.timerDuration) setTimerDuration(draft.timerDuration);
+      }
+    } catch (e) {
+      console.error("Failed to restore draft", e);
+    } finally {
+      setDraftLoaded(true);
     }
-    
-    const exercisesForRoutine = routinesMaster
-      .filter(r => r.routine === selectedRoutineName)
-      .sort((a, b) => a.order - b.order);
-      
-    const initialFormState: ExerciseFormState[] = exercisesForRoutine.map((ex, idx) => ({
-      id: `ex-${idx}`,
-      originalExercise: ex.exercise,
-      currentExercise: ex.exercise,
-      targetSets: ex.targetSets || 3,
-      targetReps: ex.targetReps,
-      sets: Array(ex.targetSets || 3).fill({ weight: "", reps: "" }),
-      memo: "",
-      unit: "kg"
-    }));
-    
-    setRoutineExercises(initialFormState);
-  }, [selectedRoutineName, routinesMaster]);
+  }, []);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    try {
+      if (!selectedRoutineName) {
+        localStorage.removeItem(DRAFT_KEY);
+      } else {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ date, selectedRoutineName, routineExercises, timerDuration }));
+      }
+    } catch (e) {
+      console.error("Failed to save draft", e);
+    }
+  }, [draftLoaded, date, selectedRoutineName, routineExercises, timerDuration]);
+
+  const handleSubstituteToggle = (id: string, checked: boolean) => {
+    setRoutineExercises(prev =>
+      prev.map(ex => {
+        if (ex.id !== id) return ex;
+        return checked
+          ? { ...ex, substitute: true, currentExercise: "" }
+          : { ...ex, substitute: false, currentExercise: ex.originalExercise };
+      })
+    );
+  };
 
   const handleExerciseNameChange = (id: string, newName: string) => {
     setRoutineExercises(prev => 
@@ -190,6 +244,7 @@ export default function Home() {
 
   // Helper to find past performance for an exercise
   const getPastPerformance = (exerciseName: string) => {
+    if (!exerciseName) return null;
     const exerciseRecords = pastRecords.filter(r => r.exercise === exerciseName);
     if (exerciseRecords.length === 0) return null;
     
@@ -214,13 +269,25 @@ export default function Home() {
     );
   };
 
+  // Progress: every set (weight & reps) of every exercise must be filled
+  const progress = useMemo(() => {
+    let filled = 0;
+    let total = 0;
+    let missingNames = 0;
+    routineExercises.forEach(ex => {
+      if (ex.currentExercise.trim() === "") missingNames++;
+      ex.sets.forEach(s => {
+        total++;
+        if (s.weight !== "" && s.reps !== "") filled++;
+      });
+    });
+    return { filled, total, missingNames };
+  }, [routineExercises]);
+
   const isFormValid = useMemo(() => {
     if (!selectedRoutineName || routineExercises.length === 0) return false;
-    const hasAnySet = routineExercises.some(ex => 
-      ex.sets.some(s => s.weight !== "" && s.reps !== "")
-    );
-    return hasAnySet;
-  }, [selectedRoutineName, routineExercises]);
+    return progress.total > 0 && progress.filled === progress.total && progress.missingNames === 0;
+  }, [selectedRoutineName, routineExercises, progress]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,12 +303,14 @@ export default function Home() {
           payload.push({
             date,
             routine: selectedRoutineName,
-            exercise: ex.currentExercise,
+            exercise: ex.currentExercise.trim(),
             set: idx + 1,
             weight: parseFloat(set.weight),
             reps: parseInt(set.reps),
             memo: idx === 0 ? ex.memo : "",
-            unit: ex.unit
+            unit: ex.unit,
+            substitute: ex.substitute,
+            originalExercise: ex.substitute ? ex.originalExercise : ""
           });
         }
       });
@@ -265,8 +334,10 @@ export default function Home() {
         setPastRecords(newRecordsData.records);
       }
       
+      // Reset form & clear saved draft
       setSelectedRoutineName("");
-      setTimeout(() => setSelectedRoutineName(selectedRoutineName), 100);
+      setRoutineExercises([]);
+      try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
       
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'An error occurred' });
@@ -319,7 +390,7 @@ export default function Home() {
             <div 
               key={name}
               className={`routine-card ${selectedRoutineName === name ? 'active' : ''}`}
-              onClick={() => setSelectedRoutineName(name)}
+              onClick={() => selectRoutine(name)}
             >
               <Dumbbell size={20} className="rt-icon" />
               <span className="rt-name">{name}</span>
@@ -327,7 +398,7 @@ export default function Home() {
           ))}
           <div 
             className={`routine-card ${selectedRoutineName === 'Extra' ? 'active' : ''}`}
-            onClick={() => setSelectedRoutineName('Extra')}
+            onClick={() => selectRoutine('Extra')}
             style={{ borderColor: selectedRoutineName === 'Extra' ? '#4a5568' : 'var(--border)' }}
           >
             <Dumbbell size={20} className="rt-icon" />
@@ -352,30 +423,55 @@ export default function Home() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2rem' }}>
           {routineExercises.map((ex, index) => {
-            const pastPerf = getPastPerformance(ex.originalExercise);
+            const isExtra = selectedRoutineName === 'Extra';
+            const pastPerf = getPastPerformance(ex.substitute ? ex.currentExercise.trim() : ex.originalExercise);
+            const nameEditable = isExtra || ex.substitute;
             
             return (
-              <div key={ex.id} className="glass-card">
+              <div key={ex.id} className="glass-card" style={ex.substitute ? { borderColor: '#d97706', boxShadow: '0 0 0 1px rgba(217,119,6,0.4)' } : undefined}>
                 {/* Exercise Header */}
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--primary)', margin: 0 }}>
-                          {index + 1}. EXERCISE
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem', gap: '0.5rem' }}>
+                        <label className="form-label" style={{ fontSize: '0.7rem', color: ex.substitute ? '#f59e0b' : 'var(--primary)', margin: 0 }}>
+                          {index + 1}. {ex.substitute ? 'SUBSTITUTE' : 'EXERCISE'}
                         </label>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button type="button" onClick={() => handleUnitChange(ex.id, "kg")} style={{ fontSize: '0.65rem', color: ex.unit === 'kg' ? 'var(--primary)' : '#737373', fontWeight: ex.unit === 'kg' ? 600 : 400 }}>KG</button>
-                          <span style={{ color: '#333', fontSize: '0.65rem' }}>|</span>
-                          <button type="button" onClick={() => handleUnitChange(ex.id, "lbs")} style={{ fontSize: '0.65rem', color: ex.unit === 'lbs' ? 'var(--primary)' : '#737373', fontWeight: ex.unit === 'lbs' ? 600 : 400 }}>LBS</button>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          {!isExtra && (
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', color: ex.substitute ? '#f59e0b' : '#737373', fontWeight: 600, cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={ex.substitute}
+                                onChange={(e) => handleSubstituteToggle(ex.id, e.target.checked)}
+                                style={{ accentColor: '#d97706' }}
+                              />
+                              代替
+                            </label>
+                          )}
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button type="button" onClick={() => handleUnitChange(ex.id, "kg")} style={{ fontSize: '0.65rem', color: ex.unit === 'kg' ? 'var(--primary)' : '#737373', fontWeight: ex.unit === 'kg' ? 600 : 400 }}>KG</button>
+                            <span style={{ color: '#333', fontSize: '0.65rem' }}>|</span>
+                            <button type="button" onClick={() => handleUnitChange(ex.id, "lbs")} style={{ fontSize: '0.65rem', color: ex.unit === 'lbs' ? 'var(--primary)' : '#737373', fontWeight: ex.unit === 'lbs' ? 600 : 400 }}>LBS</button>
+                          </div>
                         </div>
                       </div>
+                      {ex.substitute && (
+                        <div style={{ fontSize: '0.7rem', color: '#a0a0a0', marginBottom: '0.25rem' }}>
+                          元メニュー: <span style={{ textDecoration: 'line-through' }}>{ex.originalExercise}</span>（Summaryは前回値を引継ぎ）
+                        </div>
+                      )}
                       <input 
                         type="text" 
                         className="form-input" 
                         value={ex.currentExercise}
+                        readOnly={!nameEditable}
+                        placeholder={ex.substitute ? '実施した代替メニュー名' : ''}
                         onChange={(e) => handleExerciseNameChange(ex.id, e.target.value)}
-                        style={{ fontSize: '1.1rem', fontWeight: 600, padding: '0.5rem', backgroundColor: 'transparent', border: '1px dashed rgba(255,255,255,0.1)' }}
+                        style={{
+                          fontSize: '1.1rem', fontWeight: 600, padding: '0.5rem', backgroundColor: 'transparent',
+                          border: nameEditable ? `1px dashed ${ex.substitute ? 'rgba(217,119,6,0.6)' : 'rgba(255,255,255,0.1)'}` : '1px solid transparent'
+                        }}
                       />
                     </div>
                     <div style={{ textAlign: 'right', marginLeft: '1rem' }}>
@@ -481,16 +577,7 @@ export default function Home() {
           
           {selectedRoutineName === 'Extra' && (
             <button type="button" onClick={() => {
-              setRoutineExercises(prev => [...prev, {
-                id: `ex-${Date.now()}`,
-                originalExercise: 'Custom Exercise',
-                currentExercise: 'Custom Exercise',
-                targetSets: 3,
-                targetReps: '-',
-                sets: Array(3).fill({ weight: "", reps: "" }),
-                memo: "",
-                unit: "kg"
-              }]);
+              setRoutineExercises(prev => [...prev, newCustomExercise()]);
             }} className="btn-secondary" style={{ width: '100%' }}>
               + ADD EXERCISE
             </button>
@@ -512,7 +599,11 @@ export default function Home() {
             {isLoading ? <Loader2 className="animate-spin" style={{ margin: '0 auto' }} /> : (
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                 <Play size={20} fill="currentColor" />
-                COMPLETE SESSION
+                {isFormValid
+                  ? 'COMPLETE SESSION'
+                  : progress.missingNames > 0 && progress.filled === progress.total
+                    ? '代替メニュー名を入力してください'
+                    : `COMPLETE (${progress.filled}/${progress.total} sets)`}
               </span>
             )}
           </button>

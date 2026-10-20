@@ -46,9 +46,26 @@ export async function getGoogleSheet() {
   const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
   await doc.loadInfo(); 
   
+  const RECORD_HEADERS = ['Date', 'Routine', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo', 'Unit', 'Substitute', 'OriginalExercise'];
   let recordsSheet = doc.sheetsByTitle['Records_v2'];
   if (!recordsSheet) {
-    recordsSheet = await doc.addSheet({ title: 'Records_v2', headerValues: ['Date', 'Routine', 'Exercise', 'Set', 'Weight', 'Reps', 'Memo', 'Unit'] });
+    recordsSheet = await doc.addSheet({ title: 'Records_v2', headerValues: RECORD_HEADERS });
+  } else {
+    // Migrate: append any missing header columns (e.g. Substitute / OriginalExercise)
+    try {
+      await recordsSheet.loadHeaderRow();
+      const current = recordsSheet.headerValues || [];
+      const missing = RECORD_HEADERS.filter(h => !current.includes(h));
+      if (missing.length > 0) {
+        const newHeaders = [...current, ...missing];
+        if (recordsSheet.columnCount < newHeaders.length) {
+          await recordsSheet.resize({ rowCount: recordsSheet.rowCount, columnCount: newHeaders.length });
+        }
+        await recordsSheet.setHeaderRow(newHeaders);
+      }
+    } catch (e) {
+      console.error("Failed to migrate Records_v2 header", e);
+    }
   }
 
   let routinesSheet = doc.sheetsByTitle['Routines'];

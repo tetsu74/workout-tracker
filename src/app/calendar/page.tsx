@@ -100,7 +100,14 @@ export default function CalendarPage() {
               return (
                 <div key={exercise} style={{ backgroundColor: 'var(--input-bg)', padding: '1rem', borderRadius: '0.25rem', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <h4 style={{ fontWeight: 600 }}>{exercise}</h4>
+                    <h4 style={{ fontWeight: 600 }}>
+                      {exercise}
+                      {(sets[0] as any).substitute && (
+                        <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: '#f59e0b', border: '1px solid #d97706', padding: '0 0.35rem', borderRadius: '1rem', fontWeight: 400 }}>
+                          代替（元: {(sets[0] as any).originalExercise}）
+                        </span>
+                      )}
+                    </h4>
                     <span style={{ fontSize: '0.75rem', backgroundColor: tagBg, padding: '0.1rem 0.5rem', borderRadius: '1rem', color: '#a0a0a0' }}>{routine}</span>
                   </div>
                   <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
